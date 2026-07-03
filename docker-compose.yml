@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  database:
+    image: postgres
+    container_name: fms-postgres
+    environment:
+      POSTGRES_PASSWORD: 1234
+      POSTGRES_DB: fms_db
+    ports:
+      - "5432:5432"
+
+
