@@ -1,0 +1,15 @@
+spring:
+  application:
+    name: fms-backend
+
+  datasource:
+    # 로컬 개발용: 루트의 docker-compose.yml로 띄운 PostgreSQL
+    url: jdbc:postgresql://localhost:5432/fms_db
+    username: postgres
+    password: 1234
+
+  jpa:
+    hibernate:
+      # 스키마의 주인은 db/schema.sql — JPA는 검증만 하고 테이블을 만들거나 고치지 않음
+      ddl-auto: validate
+    open-in-view: false
