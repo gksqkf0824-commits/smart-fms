@@ -8,6 +8,10 @@ spring:
     username: postgres
     password: 1234
 
+  jackson:
+    # API.md의 JSON 필드명이 snake_case (pollution_ratio 등) — 응답 직렬화 규칙 통일
+    property-naming-strategy: SNAKE_CASE
+
   jpa:
     hibernate:
       # 스키마의 주인은 db/schema.sql — JPA는 검증만 하고 테이블을 만들거나 고치지 않음
