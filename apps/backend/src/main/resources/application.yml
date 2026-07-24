@@ -3,10 +3,12 @@ spring:
     name: fms-backend
 
   datasource:
-    # 로컬 개발용: 루트의 docker-compose.yml로 띄운 PostgreSQL
-    url: jdbc:postgresql://localhost:5432/fms_db
-    username: postgres
-    password: 1234
+    # ${환경변수:기본값} — 환경변수가 있으면 그 값, 없으면 콜론 뒤 기본값 사용
+    # 로컬 개발(bootRun): 환경변수 없음 → localhost로 접속 (기존과 동일)
+    # 컨테이너 실행: docker-compose가 환경변수 주입 → database 호스트로 접속
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/fms_db}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:1234}
 
   jackson:
     # API.md의 JSON 필드명이 snake_case (pollution_ratio 등) — 응답 직렬화 규칙 통일
