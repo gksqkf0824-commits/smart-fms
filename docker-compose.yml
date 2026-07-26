@@ -1,0 +1,38 @@
+services:
+  database:
+    image: postgres
+    container_name: fms-postgres
+    environment:
+      POSTGRES_PASSWORD: 1234
+      POSTGRES_DB: fms_db
+    ports:
+      - "5432:5432"
+    volumes:
+      # 컨테이너 최초 생성 시 알파벳 순으로 자동 실행 (schema.sql → seed.sql)
+      - ./db:/docker-entrypoint-initdb.d
+    healthcheck:
+      # "DB가 접속을 받을 준비가 됐는가"를 5초마다 검사
+      # backend의 depends_on이 이 결과(healthy)를 기다림
+      test: ["CMD-SHELL", "pg_isready -U postgres -d fms_db"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    # 이미지를 받아오는 게 아니라 apps/backend/Dockerfile로 직접 빌드
+    build: ./apps/backend
+    container_name: fms-backend
+    ports:
+      - "8080:8080"
+    environment:
+      # 컨테이너 안에서 localhost는 자기 자신 → DB는 서비스 이름(database)으로 접근
+      SPRING_DATASOURCE_URL: jdbc:postgresql://database:5432/fms_db
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: 1234
+      # 프론트 개발 서버 출처 — EC2 배포 시 실제 도메인으로 교체
+      APP_CORS_ALLOWED_ORIGINS: http://localhost:5173,http://localhost:3000
+    depends_on:
+      database:
+        # 단순히 "컨테이너 시작됨"이 아니라 healthcheck 통과(healthy)까지 대기
+        # → 앱이 DB보다 먼저 떠서 Connection refused로 죽는 것 방지
+        condition: service_healthy

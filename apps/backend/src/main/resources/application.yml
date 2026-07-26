@@ -1,0 +1,27 @@
+spring:
+  application:
+    name: fms-backend
+
+  datasource:
+    # ${환경변수:기본값} — 환경변수가 있으면 그 값, 없으면 콜론 뒤 기본값 사용
+    # 로컬 개발(bootRun): 환경변수 없음 → localhost로 접속 (기존과 동일)
+    # 컨테이너 실행: docker-compose가 환경변수 주입 → database 호스트로 접속
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/fms_db}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:1234}
+
+  jackson:
+    # API.md의 JSON 필드명이 snake_case (pollution_ratio 등) — 응답 직렬화 규칙 통일
+    property-naming-strategy: SNAKE_CASE
+
+  jpa:
+    hibernate:
+      # 스키마의 주인은 db/schema.sql — JPA는 검증만 하고 테이블을 만들거나 고치지 않음
+      ddl-auto: validate
+    open-in-view: false
+
+# CORS 허용 출처 — 5173(Vite), 3000(CRA) 개발 서버
+# 배포 시 환경변수 APP_CORS_ALLOWED_ORIGINS로 실제 도메인만 교체
+app:
+  cors:
+    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:3000}
