@@ -34,3 +34,13 @@ app:
 
   carwash:
     partner: ${APP_CARWASH_PARTNER:강남 세차연합}
+
+  # 검수 사진 저장소
+  # enabled=false(기본): 경로만 생성 — AWS 자격증명 없는 팀원도 그대로 실행 가능
+  # enabled=true: 실제 S3 업로드 + presigned URL 발급 (.env에 자격증명 필요)
+  s3:
+    enabled: ${APP_S3_ENABLED:false}
+    # 버킷·리전은 AWS 표준 환경변수명을 그대로 사용 (.env와 동일)
+    bucket: ${AWS_S3_BUCKET:smart-fms-inspections-evida}
+    region: ${AWS_REGION:ap-northeast-2}
+    url-ttl-minutes: ${APP_S3_URL_TTL_MINUTES:10}

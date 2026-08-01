@@ -1,8 +1,6 @@
 package com.smartfms.backend.service;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -48,6 +46,7 @@ public class InspectionService {
     private final CarwashRequestRepository carwashRequestRepository;
     private final DispatchService dispatchService;
     private final AiClient aiClient;
+    private final ImageStorage imageStorage;
 
     /** 등급 임계치 — 운영 정책값이므로 application.yml에서 주입 (docs/AGREEMENTS.md 5번) */
     @Value("${app.pollution.warn-threshold}")
@@ -72,8 +71,8 @@ public class InspectionService {
         Vehicle vehicle = vehicleRepository.findByPlate(plate)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 차량입니다: " + plate));
 
-        // 1. 사진 저장 — 현재는 경로만 생성. S3 연동 시 이 부분만 교체 (DB엔 항상 경로만 저장)
-        String imageKey = buildImageKey(plate);
+        // 1. 사진 저장 — DB엔 경로(key)만 남기고 파일은 S3로 (docs/AGREEMENTS.md 3번)
+        String imageKey = imageStorage.store(image, plate);
 
         // 2. AI 분석 요청 (AI는 결과 JSON만 반환)
         AiPredictResponse ai = aiClient.predict(image);
@@ -158,13 +157,6 @@ public class InspectionService {
             return Grade.NORMAL;
         }
         return ratio.compareTo(blockThreshold) < 0 ? Grade.WARN : Grade.BLOCK;
-    }
-
-    /** S3 저장 경로 규칙 — 예: inspections/2026/12가3456_0941.jpg */
-    private String buildImageKey(String plate) {
-        LocalDateTime now = LocalDateTime.now();
-        return "inspections/%d/%s_%s.jpg".formatted(
-                now.getYear(), plate, now.format(DateTimeFormatter.ofPattern("HHmm")));
     }
 
     /** 오염 감지 알림 — 디스코드 Webhook 연동 전까지 로그로 대체 (담당: PM) */
