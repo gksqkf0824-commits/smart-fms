@@ -1,75 +1,174 @@
 package com.smartfms.backend.service;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.smartfms.backend.domain.CarwashRequest;
+import com.smartfms.backend.domain.Dispatch;
+import com.smartfms.backend.domain.DispatchStatus;
 import com.smartfms.backend.domain.Grade;
 import com.smartfms.backend.domain.Inspection;
+import com.smartfms.backend.domain.Penalty;
+import com.smartfms.backend.domain.User;
 import com.smartfms.backend.domain.Vehicle;
 import com.smartfms.backend.domain.VehicleStatus;
-import com.smartfms.backend.dto.InspectionCreateRequest;
+import com.smartfms.backend.dto.AiPredictResponse;
+import com.smartfms.backend.dto.ReturnResponse;
+import com.smartfms.backend.repository.CarwashRequestRepository;
+import com.smartfms.backend.repository.DispatchRepository;
 import com.smartfms.backend.repository.InspectionRepository;
+import com.smartfms.backend.repository.PenaltyRepository;
 import com.smartfms.backend.repository.VehicleRepository;
 
 import lombok.RequiredArgsConstructor;
 
+/**
+ * 반납 처리 오케스트레이터 — docs/API.md `POST /return`.
+ * 사진 저장 → AI 호출 → 등급 판정 → 조치(배차/세차/패널티/알림) → DB 기록까지 조율한다.
+ */
 @Service
 @RequiredArgsConstructor
 public class InspectionService {
 
+    private static final Logger log = LoggerFactory.getLogger(InspectionService.class);
+
     private final VehicleRepository vehicleRepository;
     private final InspectionRepository inspectionRepository;
+    private final DispatchRepository dispatchRepository;
+    private final PenaltyRepository penaltyRepository;
+    private final CarwashRequestRepository carwashRequestRepository;
     private final DispatchService dispatchService;
+    private final AiClient aiClient;
 
-    // 오염 임계값 (예: 10% 이상 오염 시 dirty 판정 -> 0.100)
-    private static final BigDecimal POLLUTION_THRESHOLD = new BigDecimal("0.100");
-    // 등급 판정 상한 — docs/AGREEMENTS.md 5번: ~10% NORMAL / 10~30% WARN / 30%~ BLOCK
-    private static final BigDecimal BLOCK_THRESHOLD = new BigDecimal("0.300");
+    /** 등급 임계치 — 운영 정책값이므로 application.yml에서 주입 (docs/AGREEMENTS.md 5번) */
+    @Value("${app.pollution.warn-threshold}")
+    private BigDecimal warnThreshold;
 
-    /** AI 검수 결과 수신 후 차량 상태 변경 및 Swap 트리거 */
+    @Value("${app.pollution.block-threshold}")
+    private BigDecimal blockThreshold;
+
+    @Value("${app.carwash.partner}")
+    private String carwashPartner;
+
+    // 패널티 점수 — 확정 정책 나오면 조정 (임시값)
+    private static final int WARN_PENALTY_POINTS = 5;
+    private static final int BLOCK_PENALTY_POINTS = 10;
+
+    /**
+     * 반납 1건 처리.
+     * 1) 사진 저장 → 2) AI 분석 → 3) 등급 판정 → 4) 조치 실행 → 5) 기록
+     */
     @Transactional
-    public Long processInspection(InspectionCreateRequest request) {
-        // 1. 검수 대상 차량 조회
-        Vehicle vehicle = vehicleRepository.findById(request.vehicleId())
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 차량입니다. ID: " + request.vehicleId()));
+    public ReturnResponse processReturn(String plate, byte[] image) {
+        Vehicle vehicle = vehicleRepository.findByPlate(plate)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 차량입니다: " + plate));
 
-        // 2. 오염 여부 판단 (오염 비율이 0.10 이상인지 확인)
-        boolean isDirty = request.pollutionRatio() != null 
-                && request.pollutionRatio().compareTo(POLLUTION_THRESHOLD) >= 0;
+        // 1. 사진 저장 — 현재는 경로만 생성. S3 연동 시 이 부분만 교체 (DB엔 항상 경로만 저장)
+        String imageKey = buildImageKey(plate);
 
-        // 3. Inspection(검수 결과) 저장
-        Inspection inspection = Inspection.builder()
-                .vehicle(vehicle)
-                .roiPollutionRatio(request.pollutionRatio() != null ? request.pollutionRatio() : BigDecimal.ZERO)
-                .grade(judgeGrade(request.pollutionRatio()))
-                .imageKey(request.rawAiResultUrl())
-                .build();
-        
-        Inspection savedInspection = inspectionRepository.save(inspection);
+        // 2. AI 분석 요청 (AI는 결과 JSON만 반환)
+        AiPredictResponse ai = aiClient.predict(image);
+        BigDecimal ratio = ai.roiPollutionRatio() != null ? ai.roiPollutionRatio() : BigDecimal.ZERO;
+        BigDecimal trashRatio = ai.ratioOf("trash");
+        BigDecimal spillRatio = ai.ratioOf("spill");
 
-        // 4. 상태 머신 및 Swap 로직 연동
-        if (isDirty) {
-            // 오염 시: 차량 상태를 세차 필요(CARWASH_NEEDED)로 변경
-            vehicle.changeStatus(VehicleStatus.CARWASH_NEEDED); 
-            
-            // 다음 예약자 배차 Swap 트리거 실행
-            dispatchService.swapNextDispatch(vehicle.getId());
-        } else {
-            // 정상 시: 차량 상태를 사용가능(AVAILABLE)으로 유지
-            vehicle.changeStatus(VehicleStatus.AVAILABLE);
+        // 3. 등급 판정
+        Grade grade = judgeGrade(ratio);
+
+        // 4. 직전 이용자 확인 및 이용 종료 처리
+        Dispatch inUse = dispatchRepository
+                .findFirstByVehicleIdAndStatusOrderByCreatedAtDesc(vehicle.getId(), DispatchStatus.IN_USE)
+                .orElse(null);
+        User previousUser = inUse != null ? inUse.getUser() : null;
+        if (inUse != null) {
+            inUse.markReturned();
         }
 
-        vehicleRepository.save(vehicle);
-        return savedInspection.getId();
+        // 5. 검수 기록 저장
+        Inspection inspection = inspectionRepository.save(Inspection.builder()
+                .vehicle(vehicle)
+                .user(previousUser)
+                .roiPollutionRatio(ratio)
+                .trashRatio(trashRatio)
+                .spillRatio(spillRatio)
+                .grade(grade)
+                .iou(ai.iou())
+                .imageKey(imageKey)
+                .build());
+
+        // 6. 등급별 조치 (docs/AGREEMENTS.md 5번)
+        List<String> actions = new ArrayList<>();
+
+        // 6-1. BLOCK(30%~): 배차 차단 + Swap
+        if (grade == Grade.BLOCK) {
+            dispatchService.swapNextDispatch(vehicle.getId());
+            actions.add("dispatch_blocked");
+        }
+
+        // 6-2. 세차 — BLOCK이거나, spill(액체·얼룩)이 감지되면 양이 적어도 호출
+        boolean spillDetected = spillRatio.compareTo(BigDecimal.ZERO) > 0;
+        if (grade == Grade.BLOCK || spillDetected) {
+            carwashRequestRepository.save(CarwashRequest.builder()
+                    .vehicle(vehicle)
+                    .inspection(inspection)
+                    .partner(carwashPartner)
+                    .build());
+            actions.add("carwash_requested");
+        }
+
+        // 6-3. WARN(10~30%) 이상: 직전 이용자에게 패널티 부과
+        if (grade != Grade.NORMAL && previousUser != null) {
+            int points = grade == Grade.BLOCK ? BLOCK_PENALTY_POINTS : WARN_PENALTY_POINTS;
+            penaltyRepository.save(Penalty.builder()
+                    .user(previousUser)
+                    .inspection(inspection)
+                    .points(points)
+                    .reason("오염도 " + ratio.multiply(BigDecimal.valueOf(100)).intValue() + "%")
+                    .build());
+            previousUser.addPenaltyPoints(points);
+            actions.add("penalty_reserved");
+        }
+
+        // 6-4. 알림 — NORMAL이 아니면 발송 (WARN·BLOCK 모두, PM 확정)
+        if (grade != Grade.NORMAL) {
+            notify(plate, ratio, grade);
+            actions.add("notified");
+        }
+
+        // 7. 차량 상태 갱신 — 세차가 걸리면 세차 필요, 아니면 운행 가능
+        vehicle.changeStatus(actions.contains("carwash_requested")
+                ? VehicleStatus.CARWASH_NEEDED
+                : VehicleStatus.AVAILABLE);
+
+        return new ReturnResponse(plate, ratio, ai.classes(), grade, actions, imageKey);
     }
 
-    /** 오염도 → 등급 판정 (docs/AGREEMENTS.md 5번 기준) */
-    private Grade judgeGrade(BigDecimal pollutionRatio) {
-        if (pollutionRatio == null || pollutionRatio.compareTo(POLLUTION_THRESHOLD) < 0) {
+    /** 오염도 → 등급 (~10% NORMAL / 10~30% WARN / 30%~ BLOCK) */
+    private Grade judgeGrade(BigDecimal ratio) {
+        if (ratio.compareTo(warnThreshold) < 0) {
             return Grade.NORMAL;
         }
-        return pollutionRatio.compareTo(BLOCK_THRESHOLD) < 0 ? Grade.WARN : Grade.BLOCK;
+        return ratio.compareTo(blockThreshold) < 0 ? Grade.WARN : Grade.BLOCK;
+    }
+
+    /** S3 저장 경로 규칙 — 예: inspections/2026/12가3456_0941.jpg */
+    private String buildImageKey(String plate) {
+        LocalDateTime now = LocalDateTime.now();
+        return "inspections/%d/%s_%s.jpg".formatted(
+                now.getYear(), plate, now.format(DateTimeFormatter.ofPattern("HHmm")));
+    }
+
+    /** 오염 감지 알림 — 디스코드 Webhook 연동 전까지 로그로 대체 (담당: PM) */
+    private void notify(String plate, BigDecimal ratio, Grade grade) {
+        log.warn("[오염 감지] 차량={} 오염도={} 등급={}", plate, ratio, grade);
     }
 }

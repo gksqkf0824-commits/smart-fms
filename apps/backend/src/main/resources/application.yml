@@ -25,3 +25,12 @@ spring:
 app:
   cors:
     allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:3000}
+
+  # 오염도 등급 임계치 — 운영 정책값 (docs/AGREEMENTS.md 5번, 하드코딩 금지)
+  # ~10% NORMAL(조치 없음) / 10~30% WARN(경고+패널티) / 30%~ BLOCK(차단+Swap+세차)
+  pollution:
+    warn-threshold: ${APP_POLLUTION_WARN_THRESHOLD:0.10}
+    block-threshold: ${APP_POLLUTION_BLOCK_THRESHOLD:0.30}
+
+  carwash:
+    partner: ${APP_CARWASH_PARTNER:강남 세차연합}
