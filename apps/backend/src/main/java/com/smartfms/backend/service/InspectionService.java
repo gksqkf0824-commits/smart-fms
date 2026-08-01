@@ -5,6 +5,7 @@ import java.math.BigDecimal;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.smartfms.backend.domain.Grade;
 import com.smartfms.backend.domain.Inspection;
 import com.smartfms.backend.domain.Vehicle;
 import com.smartfms.backend.domain.VehicleStatus;
@@ -24,6 +25,8 @@ public class InspectionService {
 
     // 오염 임계값 (예: 10% 이상 오염 시 dirty 판정 -> 0.100)
     private static final BigDecimal POLLUTION_THRESHOLD = new BigDecimal("0.100");
+    // 등급 판정 상한 — docs/AGREEMENTS.md 5번: ~10% NORMAL / 10~30% WARN / 30%~ BLOCK
+    private static final BigDecimal BLOCK_THRESHOLD = new BigDecimal("0.300");
 
     /** AI 검수 결과 수신 후 차량 상태 변경 및 Swap 트리거 */
     @Transactional
@@ -40,6 +43,7 @@ public class InspectionService {
         Inspection inspection = Inspection.builder()
                 .vehicle(vehicle)
                 .roiPollutionRatio(request.pollutionRatio() != null ? request.pollutionRatio() : BigDecimal.ZERO)
+                .grade(judgeGrade(request.pollutionRatio()))
                 .imageKey(request.rawAiResultUrl())
                 .build();
         
@@ -59,5 +63,13 @@ public class InspectionService {
 
         vehicleRepository.save(vehicle);
         return savedInspection.getId();
+    }
+
+    /** 오염도 → 등급 판정 (docs/AGREEMENTS.md 5번 기준) */
+    private Grade judgeGrade(BigDecimal pollutionRatio) {
+        if (pollutionRatio == null || pollutionRatio.compareTo(POLLUTION_THRESHOLD) < 0) {
+            return Grade.NORMAL;
+        }
+        return pollutionRatio.compareTo(BLOCK_THRESHOLD) < 0 ? Grade.WARN : Grade.BLOCK;
     }
 }

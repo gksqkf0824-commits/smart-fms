@@ -26,7 +26,7 @@ public class DispatchService {
     public void swapNextDispatch(Long dirtyVehicleId) {
         // 1. 오염된 차량의 다음 예정된 배차(RESERVED) 조회
         Dispatch targetDispatch = dispatchRepository
-                .findFirstByVehicleIdAndStatusOrderByStartTimeAsc(dirtyVehicleId, DispatchStatus.RESERVED.name())
+                .findFirstByVehicleIdAndStatusOrderByCreatedAtAsc(dirtyVehicleId, DispatchStatus.RESERVED)
                 .orElse(null);
 
         if (targetDispatch == null) {
@@ -35,7 +35,7 @@ public class DispatchService {
         }
 
         // 2. 현재 이용 가능(AVAILABLE)한 정상 차량 목록 조회
-        List<Vehicle> availableVehicles = vehicleRepository.findByStatus(VehicleStatus.AVAILABLE.name());
+        List<Vehicle> availableVehicles = vehicleRepository.findByStatus(VehicleStatus.AVAILABLE);
 
         Vehicle newVehicle = availableVehicles.isEmpty() ? null : availableVehicles.get(0);
 

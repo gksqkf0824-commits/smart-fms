@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import com.smartfms.backend.domain.Vehicle;
+import com.smartfms.backend.domain.VehicleStatus;
 
 @Repository
 public interface VehicleRepository extends JpaRepository<Vehicle, Long> {
@@ -15,5 +16,5 @@ public interface VehicleRepository extends JpaRepository<Vehicle, Long> {
     Optional<Vehicle> findByPlate(String plate);
 
     /** 특정 상태(AVAILABLE 등)의 차량 목록 조회 — 4~5주차 Swap 로직에서 사용 */
-    List<Vehicle> findByStatus(String status);
+    List<Vehicle> findByStatus(VehicleStatus status);
 }
