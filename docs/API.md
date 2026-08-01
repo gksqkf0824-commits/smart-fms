@@ -1,8 +1,6 @@
 # API 명세서 (API Spec)
 
-> ⚠️ **2주차에 확정.** 이후 변경 시 PM(권소윤) 승인 필요.
 > 이 문서의 JSON 규약이 AI ↔ 백엔드 ↔ 프론트의 "계약서"입니다.
-> 이 계약서만 맞으면 세 파트가 서로 안 기다리고 동시에 개발할 수 있습니다.
 
 ---
 
@@ -47,18 +45,16 @@
     { "type": "trash", "area_ratio": 0.12 },
     { "type": "spill", "area_ratio": 0.08 }
   ],
-  "confidence": 0.91,
-  "iou": 0.86
+  "confidence": 0.91
 }
 ```
 
 | 필드 | 타입 | 설명 |
 |---|---|---|
-| `roi_pollution_ratio` | float | **핵심 값.** ROI(시트·바닥) 대비 **합산** 오염 면적 비율. 0.20 = 20% 오염 |
+| `roi_pollution_ratio` | float | **핵심 값.** ROI(시트·바닥) 대비 **합산** 오염 면적 비율. **범위 0.0~1.0** (0.20 = 20%). 화면 표시는 프론트가 ×100 |
 | `classes[].type` | string | 오염 종류. `trash`(고형 쓰레기) 또는 `spill`(액체·얼룩) |
 | `classes[].area_ratio` | float | 그 종류가 차지한 면적 비율. (trash 12% + spill 8% = 합산 20%) |
 | `confidence` | float | 모델이 얼마나 확신하는지 (0~1) |
-| `iou` | float | 면적을 얼마나 정확히 땄는지 검증 지표 (대시보드/발표용) |
 
 **왜 이렇게 나눠 주나?**
 백엔드는 `roi_pollution_ratio`(합산)로 **등급을 판정**하고,
@@ -167,7 +163,6 @@
       { "type": "trash", "area_ratio": 0.12 },
       { "type": "spill", "area_ratio": 0.08 }
     ],
-    "iou": 0.86,
     "image_url": "https://s3.../presigned...",
     "actions": ["dispatch_blocked", "carwash_requested", "penalty_reserved"],
     "checked_at": "2026-01-15T09:41:00"
@@ -217,4 +212,4 @@
 ## 5. 확정 이력
 | 날짜 | 변경 | 담당 |
 |---|---|---|
-| (2주차) | 최초 확정 | 권소윤 |
+| 2026-08-02 | iou 응답 제외 / 오염도 0~1 확정 | 권소윤 |
