@@ -50,4 +50,9 @@ public class Dispatch {
         this.status = DispatchStatus.BLOCKED;
         this.swappedTo = swappedTo;
     }
+
+    /** 이용 종료(반납) 처리 */
+    public void markReturned() {
+        this.status = DispatchStatus.RETURNED;
+    }
 }

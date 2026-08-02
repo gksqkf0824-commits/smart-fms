@@ -25,3 +25,22 @@ spring:
 app:
   cors:
     allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:3000}
+
+  # 오염도 등급 임계치 — 운영 정책값 (docs/AGREEMENTS.md 5번, 하드코딩 금지)
+  # ~10% NORMAL(조치 없음) / 10~30% WARN(경고+패널티) / 30%~ BLOCK(차단+Swap+세차)
+  pollution:
+    warn-threshold: ${APP_POLLUTION_WARN_THRESHOLD:0.10}
+    block-threshold: ${APP_POLLUTION_BLOCK_THRESHOLD:0.30}
+
+  carwash:
+    partner: ${APP_CARWASH_PARTNER:강남 세차연합}
+
+  # 검수 사진 저장소
+  # enabled=false(기본): 경로만 생성 — AWS 자격증명 없는 팀원도 그대로 실행 가능
+  # enabled=true: 실제 S3 업로드 + presigned URL 발급 (.env에 자격증명 필요)
+  s3:
+    enabled: ${APP_S3_ENABLED:false}
+    # 버킷·리전은 AWS 표준 환경변수명을 그대로 사용 (.env와 동일)
+    bucket: ${AWS_S3_BUCKET:smart-fms-inspections-evida}
+    region: ${AWS_REGION:ap-northeast-2}
+    url-ttl-minutes: ${APP_S3_URL_TTL_MINUTES:10}
