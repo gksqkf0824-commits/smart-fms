@@ -1,9 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-const gradeLabel = { BLOCK: '오염 심각', WARN: '경미한 오염', NORMAL: '정상' }
-const gradeBg    = { BLOCK: '#fee2e2', WARN: '#fef9c3', NORMAL: '#dcfce7' }
-const gradeColor = { BLOCK: '#dc2626', WARN: '#b45309', NORMAL: '#16a34a' }
 const statusLabel = { AVAILABLE: '운행 가능', CARWASH_NEEDED: '세차 필요', INSPECTING: '검수 중' }
 const statusBg    = { AVAILABLE: '#dcfce7', CARWASH_NEEDED: '#fef9c3', INSPECTING: '#fee2e2' }
 const statusColor = { AVAILABLE: '#16a34a', CARWASH_NEEDED: '#b45309', INSPECTING: '#dc2626' }
@@ -23,21 +20,15 @@ export default function Home() {
         if (!res.ok) throw new Error('서버 오류')
         return res.json()
       })
-      .then(data => {
-        setVehicles(data)
-        setLoading(false)
-      })
-      .catch(err => {
-        setError(err.message)
-        setLoading(false)
-      })
+      .then(data => { setVehicles(data); setLoading(false) })
+      .catch(err => { setError(err.message); setLoading(false) })
   }, [])
 
   const counts = {
-    전체: vehicles.length,
-    '운행 가능': vehicles.filter(v => v.status === 'AVAILABLE').length,
-    '세차 필요': vehicles.filter(v => v.status === 'CARWASH_NEEDED').length,
-    '검수 중':   vehicles.filter(v => v.status === 'INSPECTING').length,
+    '전체 차량': vehicles.length,
+    '운행 가능':  vehicles.filter(v => v.status === 'AVAILABLE').length,
+    '세차 필요':  vehicles.filter(v => v.status === 'CARWASH_NEEDED').length,
+    '검수 중':    vehicles.filter(v => v.status === 'INSPECTING').length,
   }
 
   const recent = [...vehicles]
@@ -71,10 +62,10 @@ export default function Home() {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '14px', marginBottom: '20px' }}>
         {[
-          { label: '전체 차량',  color: '#4f8ef7', border: '#4f8ef7', sub: '관리 중인 플릿' },
-          { label: '운행 가능',  color: '#22c55e', border: '#22c55e', sub: '즉시 배차 가능' },
-          { label: '세차 필요',  color: '#f59e0b', border: '#f59e0b', sub: '처리 대기 중' },
-          { label: '검수 중',    color: '#ef4444', border: '#ef4444', sub: '조치 필요' },
+          { label: '전체 차량', color: '#4f8ef7', border: '#4f8ef7', sub: '관리 중인 플릿' },
+          { label: '운행 가능', color: '#22c55e', border: '#22c55e', sub: '즉시 배차 가능' },
+          { label: '세차 필요', color: '#f59e0b', border: '#f59e0b', sub: '처리 대기 중' },
+          { label: '검수 중',   color: '#ef4444', border: '#ef4444', sub: '조치 필요' },
         ].map(c => (
           <div key={c.label} style={{ background: '#fff', borderRadius: '12px', padding: '20px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', borderTop: `3px solid ${c.border}` }}>
             <div style={{ fontSize: '11px', color: '#888', fontWeight: '700', marginBottom: '8px' }}>{c.label}</div>
@@ -89,7 +80,6 @@ export default function Home() {
           <div style={{ fontSize: '14px', fontWeight: '800', color: '#1a2744' }}>최근 반납 차량 현황</div>
           <button onClick={() => navigate('/vehicles')} style={{ padding: '7px 14px', background: '#fff', color: '#4f8ef7', border: '1.5px solid #4f8ef7', borderRadius: '6px', fontSize: '12px', fontWeight: '600' }}>전체 보기</button>
         </div>
-
         {recent.length === 0 ? (
           <div style={{ textAlign: 'center', color: '#aaa', fontSize: '13px', padding: '24px' }}>최근 검수 내역이 없습니다.</div>
         ) : (
