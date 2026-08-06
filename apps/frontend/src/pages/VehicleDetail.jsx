@@ -1,7 +1,4 @@
-import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-
-const API_BASE = 'http://localhost:8080'
 
 const statusLabel = { AVAILABLE: '운행 가능', CARWASH_NEEDED: '세차 필요', INSPECTING: '검수 중' }
 const statusBg    = { AVAILABLE: '#dcfce7', CARWASH_NEEDED: '#fef9c3', INSPECTING: '#fee2e2' }
@@ -26,12 +23,12 @@ const actionColor = {
   notified:          '#4f8ef7',
 }
 
-// 목업 데이터 (GET /vehicles/{plate} 완성되면 API 호출로 교체)
+// TODO: GET /vehicles/{plate} 완성되면 실제 API 호출로 교체
 const mockData = {
   plate: '12가3456',
   model: '아이오닉5',
   zone: '강남 A존',
-  status: 'INSPECTING',
+  status: 'CARWASH_NEEDED',
   last_checked: '2026-07-05T14:32:00',
   latest_inspection: {
     roi_pollution_ratio: 0.235,
@@ -48,14 +45,6 @@ const mockData = {
 export default function VehicleDetail() {
   const navigate = useNavigate()
   const { id } = useParams()
-
-  // TODO: GET /vehicles/{plate} 완성되면 아래 주석 해제 후 목업 데이터 제거
-  // const [data, setData] = useState(null)
-  // useEffect(() => {
-  //   fetch(`${API_BASE}/vehicles/${id}`)
-  //     .then(res => res.json())
-  //     .then(setData)
-  // }, [id])
 
   const data = { ...mockData, plate: id ?? mockData.plate }
   const ins = data.latest_inspection
@@ -92,33 +81,39 @@ export default function VehicleDetail() {
           {/* 이미지 비교 */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
             <div style={{ background: '#fff', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', border: '1.5px solid #eee' }}>
-              <div style={{ padding: '10px 14px', background: '#f8f9fa', borderBottom: '1px solid #eee', fontSize: '12px', fontWeight: '700' }}>
+              <div style={{ padding: '10px 14px', background: '#f8f9fa', borderBottom: '1px solid #eee', fontSize: '12px', fontWeight: '700', color: '#555' }}>
                 원본 사진
               </div>
-              <div style={{ height: '220px', background: '#e8ecf0', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '8px', color: '#aaa', fontSize: '13px' }}>
-                <div style={{ fontSize: '13px', color: '#aaa' }}>S3 이미지 연결 후 표시</div>
-                <div style={{ fontSize: '11px', color: '#bbb' }}>{ins.image_key}</div>
+              <div style={{ height: '220px', background: '#f0f2f5', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ fontSize: '13px', color: '#aaa' }}>이미지 준비 중</div>
+                <div style={{ fontSize: '10px', color: '#ccc' }}>{ins.image_key}</div>
               </div>
             </div>
             <div style={{ background: '#fff', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', border: `1.5px solid ${grade.border}` }}>
               <div style={{ padding: '10px 14px', background: grade.bg, borderBottom: `1px solid ${grade.border}`, fontSize: '12px', fontWeight: '700', color: grade.color }}>
                 AI 마스크 오버레이
               </div>
-              <div style={{ height: '220px', background: '#fff5f5', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '8px', position: 'relative' }}>
+              <div style={{ height: '220px', background: '#fff8f8', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '8px', position: 'relative' }}>
                 <div style={{ fontSize: '13px', color: '#aaa' }}>마스크 결과 이미지</div>
-                <div style={{ position: 'absolute', top: '28%', left: '18%', width: '58%', height: '42%', background: `${grade.color}30`, borderRadius: '8px', border: `2px dashed ${grade.color}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: grade.color, fontSize: '12px', fontWeight: '700' }}>
-                  오염 감지 {pollPct}%
+                <div style={{
+                  position: 'absolute', top: '25%', left: '15%', width: '65%', height: '45%',
+                  background: `${grade.color}20`, borderRadius: '8px',
+                  border: `2px dashed ${grade.color}`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: grade.color, fontSize: '13px', fontWeight: '700',
+                }}>
+                  오염 감지 영역 {pollPct}%
                 </div>
               </div>
             </div>
           </div>
 
           {/* 분석 결과 */}
-          <div style={{ background: '#fff', borderRadius: '12px', padding: '20px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', marginBottom: '16px' }}>
-            <div style={{ fontSize: '14px', fontWeight: '800', color: '#1a2744', marginBottom: '14px' }}>AI 분석 결과</div>
+          <div style={{ background: '#fff', borderRadius: '12px', padding: '20px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+            <div style={{ fontSize: '14px', fontWeight: '800', color: '#1a2744', marginBottom: '16px' }}>AI 분석 결과</div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
-              <div style={{ background: grade.bg, border: `1.5px solid ${grade.border}`, borderRadius: '10px', padding: '12px 20px', textAlign: 'center' }}>
+              <div style={{ background: grade.bg, border: `1.5px solid ${grade.border}`, borderRadius: '10px', padding: '12px 20px', textAlign: 'center', flexShrink: 0 }}>
                 <div style={{ fontSize: '11px', color: grade.color, fontWeight: '700', marginBottom: '3px' }}>판정 등급</div>
                 <div style={{ fontSize: '20px', fontWeight: '900', color: grade.color }}>{grade.label}</div>
               </div>
@@ -133,7 +128,6 @@ export default function VehicleDetail() {
               </div>
             </div>
 
-            {/* 감지 항목 */}
             <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '16px' }}>
               {ins.classes.map((c, i) => (
                 <div key={i} style={{ background: c.type === 'trash' ? '#fee2e2' : '#fef9c3', borderRadius: '8px', padding: '8px 14px', fontSize: '12px', color: c.type === 'trash' ? '#dc2626' : '#b45309', fontWeight: '600' }}>
@@ -142,7 +136,6 @@ export default function VehicleDetail() {
               ))}
             </div>
 
-            {/* 자동 처리 */}
             {ins.actions.length > 0 && (
               <div>
                 <div style={{ fontSize: '12px', fontWeight: '700', color: '#555', marginBottom: '8px' }}>자동 처리 결과</div>
