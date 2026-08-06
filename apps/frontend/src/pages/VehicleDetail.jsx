@@ -1,31 +1,23 @@
-import { useNavigate } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
 
-const vehicle = {
-  plate: '12가3456',
-  model: '아이오닉5',
-  zone: '강남 A존',
-  status: 'INSPECTING',
-  last_checked: '2026.07.05 14:32',
-  latest_inspection: {
-    roi_pollution_ratio: 0.235,
-    classes: [
-      { type: 'trash', area_ratio: 0.12 },
-      { type: 'spill', area_ratio: 0.08 },
-    ],
-    grade: 'BLOCK',
-    actions: ['dispatch_blocked', 'carwash_requested', 'penalty_reserved', 'notified'],
-    iou: 0.86,
-    confidence: 0.91,
-    image_url: null,
-    checked_at: '2026-07-05T14:32:00',
-  }
+const API_BASE = 'http://localhost:8080'
+
+const statusLabel = { AVAILABLE: '운행 가능', CARWASH_NEEDED: '세차 필요', INSPECTING: '검수 중' }
+const statusBg    = { AVAILABLE: '#dcfce7', CARWASH_NEEDED: '#fef9c3', INSPECTING: '#fee2e2' }
+const statusColor = { AVAILABLE: '#16a34a', CARWASH_NEEDED: '#b45309', INSPECTING: '#dc2626' }
+
+const gradeConfig = {
+  NORMAL: { label: '정상', color: '#16a34a', bg: '#dcfce7', border: '#bbf7d0' },
+  WARN:   { label: '경고', color: '#b45309', bg: '#fef9c3', border: '#fde68a' },
+  BLOCK:  { label: '심각', color: '#dc2626', bg: '#fee2e2', border: '#fecaca' },
 }
 
 const actionLabel = {
-  dispatch_blocked:  '배차 자동 중단',
-  carwash_requested: '세차 업체 호출',
-  penalty_reserved:  '패널티 부과 예약',
-  notified:          '디스코드 알림 전송',
+  dispatch_blocked:  '배차 차단됨',
+  carwash_requested: '세차 접수됨',
+  penalty_reserved:  '패널티 부과 예약됨',
+  notified:          '알림 전송됨',
 }
 const actionColor = {
   dispatch_blocked:  '#ef4444',
@@ -34,25 +26,59 @@ const actionColor = {
   notified:          '#4f8ef7',
 }
 
+// 목업 데이터 (GET /vehicles/{plate} 완성되면 API 호출로 교체)
+const mockData = {
+  plate: '12가3456',
+  model: '아이오닉5',
+  zone: '강남 A존',
+  status: 'INSPECTING',
+  last_checked: '2026-07-05T14:32:00',
+  latest_inspection: {
+    roi_pollution_ratio: 0.235,
+    classes: [
+      { type: 'trash', area_ratio: 0.14 },
+      { type: 'spill', area_ratio: 0.09 },
+    ],
+    grade: 'BLOCK',
+    actions: ['dispatch_blocked', 'carwash_requested', 'penalty_reserved', 'notified'],
+    image_key: 'inspections/2026/12가3456_2037.jpg',
+  }
+}
+
 export default function VehicleDetail() {
   const navigate = useNavigate()
-  const ins = vehicle.latest_inspection
-  const pollPct = (ins.roi_pollution_ratio * 100).toFixed(1)
-  const pollColor = ins.roi_pollution_ratio >= 0.3 ? '#ef4444' : ins.roi_pollution_ratio >= 0.1 ? '#f59e0b' : '#22c55e'
+  const { id } = useParams()
+
+  // TODO: GET /vehicles/{plate} 완성되면 아래 주석 해제 후 목업 데이터 제거
+  // const [data, setData] = useState(null)
+  // useEffect(() => {
+  //   fetch(`${API_BASE}/vehicles/${id}`)
+  //     .then(res => res.json())
+  //     .then(setData)
+  // }, [id])
+
+  const data = { ...mockData, plate: id ?? mockData.plate }
+  const ins = data.latest_inspection
+  const grade = ins ? gradeConfig[ins.grade] : null
+  const pollPct = ins ? (ins.roi_pollution_ratio * 100).toFixed(1) : null
 
   return (
     <div style={{ padding: '24px' }}>
       <div style={{ fontSize: '12px', color: '#aaa', marginBottom: '8px', cursor: 'pointer' }} onClick={() => navigate('/vehicles')}>
-        차량 목록 &gt; {vehicle.plate}
+        차량 목록 &gt; {data.plate}
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
         <div>
           <div style={{ fontSize: '20px', fontWeight: '800', color: '#1a2744', display: 'flex', alignItems: 'center', gap: '10px' }}>
-            {vehicle.plate}
-            <span style={{ background: '#fee2e2', color: '#dc2626', padding: '3px 9px', borderRadius: '20px', fontSize: '13px', fontWeight: '700' }}>검수 중</span>
+            {data.plate}
+            <span style={{ background: statusBg[data.status], color: statusColor[data.status], padding: '3px 9px', borderRadius: '20px', fontSize: '13px', fontWeight: '700' }}>
+              {statusLabel[data.status]}
+            </span>
           </div>
-          <div style={{ fontSize: '12px', color: '#888', marginTop: '6px' }}>{vehicle.model} · {vehicle.zone} · 반납: {vehicle.last_checked}</div>
+          <div style={{ fontSize: '12px', color: '#888', marginTop: '6px' }}>
+            {data.model} · {data.zone} · 반납: {data.last_checked ? new Date(data.last_checked).toLocaleString('ko-KR') : '-'}
+          </div>
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
           <button style={{ padding: '8px 16px', background: '#f59e0b', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: '600' }}>세차 호출</button>
@@ -61,80 +87,78 @@ export default function VehicleDetail() {
         </div>
       </div>
 
-      {/* 이미지 비교 */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
-        <div style={{ background: '#fff', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', border: '1.5px solid #eee' }}>
-          <div style={{ padding: '10px 14px', background: '#f8f9fa', borderBottom: '1px solid #eee', fontSize: '12px', fontWeight: '700' }}>
-            원본 사진 <span style={{ fontWeight: '400', color: '#aaa' }}>(반납 시 자동 촬영)</span>
-          </div>
-          <div style={{ height: '220px', background: '#e8ecf0', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '8px', color: '#aaa', fontSize: '13px' }}>
-            <div style={{ fontSize: '44px' }}>[ 원본 이미지 ]</div>
-            <div>S3 presigned URL 연결 후 표시</div>
-          </div>
-        </div>
-        <div style={{ background: '#fff', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', border: '1.5px solid #fecaca' }}>
-          <div style={{ padding: '10px 14px', background: '#fff5f5', borderBottom: '1px solid #fecaca', fontSize: '12px', fontWeight: '700', color: '#ef4444' }}>
-            AI 마스크 오버레이 <span style={{ fontWeight: '400', color: '#aaa' }}>(오염 감지 결과)</span>
-          </div>
-          <div style={{ height: '220px', background: '#fff5f5', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '8px', color: '#aaa', fontSize: '13px', position: 'relative' }}>
-            <div style={{ fontSize: '44px' }}>[ 마스크 결과 ]</div>
-            <div style={{
-              position: 'absolute', top: '28%', left: '18%', width: '58%', height: '42%',
-              background: 'rgba(239,68,68,0.25)', borderRadius: '8px', border: '2px dashed #ef4444',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: '#ef4444', fontSize: '12px', fontWeight: '700',
-            }}>오염 감지 영역 {pollPct}%</div>
-          </div>
-        </div>
-      </div>
-
-      {/* 분석 결과 */}
-      <div style={{ background: '#fff', borderRadius: '12px', padding: '20px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', marginBottom: '16px' }}>
-        <div style={{ fontSize: '14px', fontWeight: '800', color: '#1a2744', marginBottom: '14px' }}>AI 분석 결과</div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '10px', marginBottom: '16px' }}>
-          {[
-            [pollPct + '%', pollColor, '합산 오염도'],
-            [(ins.confidence * 100).toFixed(0) + '%', '#4f8ef7', '모델 신뢰도'],
-            [ins.iou.toFixed(2), '#22c55e', 'IoU'],
-            [ins.classes.length + '건', '#f59e0b', '감지 클래스'],
-          ].map(([v, c, l]) => (
-            <div key={l} style={{ background: '#f8f9fa', borderRadius: '8px', padding: '12px', textAlign: 'center' }}>
-              <div style={{ fontSize: '20px', fontWeight: '900', color: c }}>{v}</div>
-              <div style={{ fontSize: '10px', color: '#888', marginTop: '3px' }}>{l}</div>
+      {ins && grade && (
+        <>
+          {/* 이미지 비교 */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+            <div style={{ background: '#fff', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', border: '1.5px solid #eee' }}>
+              <div style={{ padding: '10px 14px', background: '#f8f9fa', borderBottom: '1px solid #eee', fontSize: '12px', fontWeight: '700' }}>
+                원본 사진
+              </div>
+              <div style={{ height: '220px', background: '#e8ecf0', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '8px', color: '#aaa', fontSize: '13px' }}>
+                <div style={{ fontSize: '13px', color: '#aaa' }}>S3 이미지 연결 후 표시</div>
+                <div style={{ fontSize: '11px', color: '#bbb' }}>{ins.image_key}</div>
+              </div>
             </div>
-          ))}
-        </div>
-
-        <div style={{ background: '#f0f0f0', borderRadius: '20px', height: '12px', overflow: 'hidden', marginBottom: '8px' }}>
-          <div style={{ width: `${pollPct}%`, height: '100%', borderRadius: '20px', background: 'linear-gradient(90deg, #22c55e, #f59e0b, #ef4444)' }} />
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#888', marginBottom: '16px' }}>
-          <span>합산 오염도: <strong style={{ color: pollColor }}>{pollPct}%</strong></span>
-          <span style={{ color: '#ef4444', fontWeight: '700' }}>기준치(10%) 초과</span>
-          <span>기준치: 10%</span>
-        </div>
-
-        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '16px' }}>
-          {ins.classes.map((c, i) => (
-            <div key={i} style={{ background: c.type === 'trash' ? '#fee2e2' : '#fef9c3', borderRadius: '8px', padding: '8px 14px', fontSize: '12px', color: c.type === 'trash' ? '#dc2626' : '#b45309', fontWeight: '600' }}>
-              {c.type === 'trash' ? '고형 쓰레기' : '액체·얼룩'} · {(c.area_ratio * 100).toFixed(1)}%
+            <div style={{ background: '#fff', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', border: `1.5px solid ${grade.border}` }}>
+              <div style={{ padding: '10px 14px', background: grade.bg, borderBottom: `1px solid ${grade.border}`, fontSize: '12px', fontWeight: '700', color: grade.color }}>
+                AI 마스크 오버레이
+              </div>
+              <div style={{ height: '220px', background: '#fff5f5', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '8px', position: 'relative' }}>
+                <div style={{ fontSize: '13px', color: '#aaa' }}>마스크 결과 이미지</div>
+                <div style={{ position: 'absolute', top: '28%', left: '18%', width: '58%', height: '42%', background: `${grade.color}30`, borderRadius: '8px', border: `2px dashed ${grade.color}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: grade.color, fontSize: '12px', fontWeight: '700' }}>
+                  오염 감지 {pollPct}%
+                </div>
+              </div>
             </div>
-          ))}
-        </div>
-      </div>
+          </div>
 
-      {/* 자동 처리 결과 */}
-      <div style={{ background: '#fff', borderRadius: '12px', padding: '20px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-        <div style={{ fontSize: '14px', fontWeight: '800', color: '#1a2744', marginBottom: '14px' }}>자동 처리 결과</div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {ins.actions.map((a, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', background: '#f8f9fa', borderRadius: '8px', padding: '10px 14px' }}>
-              <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: actionColor[a], flexShrink: 0 }} />
-              <span style={{ fontSize: '13px', fontWeight: '600', color: '#1a2744' }}>{actionLabel[a]}</span>
+          {/* 분석 결과 */}
+          <div style={{ background: '#fff', borderRadius: '12px', padding: '20px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', marginBottom: '16px' }}>
+            <div style={{ fontSize: '14px', fontWeight: '800', color: '#1a2744', marginBottom: '14px' }}>AI 분석 결과</div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
+              <div style={{ background: grade.bg, border: `1.5px solid ${grade.border}`, borderRadius: '10px', padding: '12px 20px', textAlign: 'center' }}>
+                <div style={{ fontSize: '11px', color: grade.color, fontWeight: '700', marginBottom: '3px' }}>판정 등급</div>
+                <div style={{ fontSize: '20px', fontWeight: '900', color: grade.color }}>{grade.label}</div>
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ background: '#f0f0f0', borderRadius: '20px', height: '10px', overflow: 'hidden', marginBottom: '6px' }}>
+                  <div style={{ width: `${pollPct}%`, height: '100%', borderRadius: '20px', background: 'linear-gradient(90deg, #22c55e, #f59e0b, #ef4444)' }} />
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#888' }}>
+                  <span>합산 오염도: <strong style={{ color: grade.color }}>{pollPct}%</strong></span>
+                  <span>기준치: 10% / 30%</span>
+                </div>
+              </div>
             </div>
-          ))}
-        </div>
-      </div>
+
+            {/* 감지 항목 */}
+            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '16px' }}>
+              {ins.classes.map((c, i) => (
+                <div key={i} style={{ background: c.type === 'trash' ? '#fee2e2' : '#fef9c3', borderRadius: '8px', padding: '8px 14px', fontSize: '12px', color: c.type === 'trash' ? '#dc2626' : '#b45309', fontWeight: '600' }}>
+                  {c.type === 'trash' ? '고형 쓰레기' : '액체·얼룩'} · {(c.area_ratio * 100).toFixed(1)}%
+                </div>
+              ))}
+            </div>
+
+            {/* 자동 처리 */}
+            {ins.actions.length > 0 && (
+              <div>
+                <div style={{ fontSize: '12px', fontWeight: '700', color: '#555', marginBottom: '8px' }}>자동 처리 결과</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  {ins.actions.map((a, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', background: '#f8f9fa', borderRadius: '8px', padding: '10px 14px' }}>
+                      <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: actionColor[a] ?? '#6b7280', flexShrink: 0 }} />
+                      <span style={{ fontSize: '13px', fontWeight: '600', color: '#1a2744' }}>{actionLabel[a] ?? a}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </>
+      )}
     </div>
   )
 }
