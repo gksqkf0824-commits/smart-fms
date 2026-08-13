@@ -4,8 +4,6 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,8 +35,6 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class InspectionService {
 
-    private static final Logger log = LoggerFactory.getLogger(InspectionService.class);
-
     private final VehicleRepository vehicleRepository;
     private final InspectionRepository inspectionRepository;
     private final DispatchRepository dispatchRepository;
@@ -47,6 +43,7 @@ public class InspectionService {
     private final DispatchService dispatchService;
     private final AiClient aiClient;
     private final ImageStorage imageStorage;
+    private final Notifier notifier;
 
     /** 등급 임계치 — 운영 정책값이므로 application.yml에서 주입 (docs/AGREEMENTS.md 5번) */
     @Value("${app.pollution.warn-threshold}")
@@ -139,7 +136,7 @@ public class InspectionService {
 
         // 6-4. 알림 — NORMAL이 아니면 발송 (WARN·BLOCK 모두, PM 확정)
         if (grade != Grade.NORMAL) {
-            notify(plate, ratio, grade);
+            notifier.notify(plate, ratio, grade, grade == Grade.BLOCK);
             actions.add("notified");
         }
 
@@ -157,10 +154,5 @@ public class InspectionService {
             return Grade.NORMAL;
         }
         return ratio.compareTo(blockThreshold) < 0 ? Grade.WARN : Grade.BLOCK;
-    }
-
-    /** 오염 감지 알림 — 디스코드 Webhook 연동 전까지 로그로 대체 (담당: PM) */
-    private void notify(String plate, BigDecimal ratio, Grade grade) {
-        log.warn("[오염 감지] 차량={} 오염도={} 등급={}", plate, ratio, grade);
     }
 }

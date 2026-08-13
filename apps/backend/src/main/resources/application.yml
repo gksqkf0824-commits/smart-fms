@@ -35,6 +35,13 @@ app:
   carwash:
     partner: ${APP_CARWASH_PARTNER:강남 세차연합}
 
+  # 오염 감지 알림 — 디스코드 웹훅
+  # enabled=false(기본): 로그로 대체 — 웹훅 URL 없는 팀원도 그대로 실행 가능
+  # enabled=true: 실제 웹훅 전송 (.env에 APP_DISCORD_WEBHOOK_URL 필요)
+  discord:
+    enabled: ${APP_DISCORD_ENABLED:false}
+    webhook-url: ${APP_DISCORD_WEBHOOK_URL:}
+
   # 검수 사진 저장소
   # enabled=false(기본): 경로만 생성 — AWS 자격증명 없는 팀원도 그대로 실행 가능
   # enabled=true: 실제 S3 업로드 + presigned URL 발급 (.env에 자격증명 필요)
