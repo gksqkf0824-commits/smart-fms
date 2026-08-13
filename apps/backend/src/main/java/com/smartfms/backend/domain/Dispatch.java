@@ -45,10 +45,15 @@ public class Dispatch {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    /** 오염 반납으로 배차 차단 + 대체 차량 Swap */
-    public void block(Vehicle swappedTo) {
+    /** 오염 반납으로 배차 차단 (대체 차량 없음) */
+    public void block() {
         this.status = DispatchStatus.BLOCKED;
-        this.swappedTo = swappedTo;
+    }
+
+    /** 오염 반납으로 배차 차단 + 대체 차량으로 Swap */
+    public void swapTo(Vehicle swappedVehicle) {
+        this.status = DispatchStatus.SWAPPED;
+        this.swappedTo = swappedVehicle;
     }
 
     /** 이용 종료(반납) 처리 */
