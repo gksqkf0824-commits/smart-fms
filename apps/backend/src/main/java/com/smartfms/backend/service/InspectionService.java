@@ -66,7 +66,7 @@ public class InspectionService {
     @Transactional
     public ReturnResponse processReturn(String plate, byte[] image) {
         Vehicle vehicle = vehicleRepository.findByPlate(plate)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 차량입니다: " + plate));
+                .orElseThrow(() -> new VehicleNotFoundException(plate));
 
         // 1. 사진 저장 — DB엔 경로(key)만 남기고 파일은 S3로 (docs/AGREEMENTS.md 3번)
         String imageKey = imageStorage.store(image, plate);
