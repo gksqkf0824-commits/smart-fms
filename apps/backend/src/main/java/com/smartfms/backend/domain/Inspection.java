@@ -51,10 +51,6 @@ public class Inspection {
     @Column(nullable = false, length = 10)
     private Grade grade;
 
-    /** 면적 정확도 (검증용) */
-    @Column(precision = 4, scale = 3)
-    private BigDecimal iou;
-
     /** S3 경로 문자열만 저장 (이미지 바이너리 금지 — docs/AGREEMENTS.md 3번) */
     @Column(name = "image_key", length = 255)
     private String imageKey;

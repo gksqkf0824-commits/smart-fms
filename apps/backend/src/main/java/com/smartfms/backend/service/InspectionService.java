@@ -97,7 +97,6 @@ public class InspectionService {
                 .trashRatio(trashRatio)
                 .spillRatio(spillRatio)
                 .grade(grade)
-                .iou(ai.iou())
                 .imageKey(imageKey)
                 .build());
 

@@ -10,8 +10,7 @@ import java.util.List;
 public record AiPredictResponse(
         BigDecimal roiPollutionRatio,   // 합산 오염도 (0.0~1.0)
         List<PollutionClass> classes,   // 종류별 면적 비율
-        BigDecimal confidence,
-        BigDecimal iou
+        BigDecimal confidence
 ) {
     /** 오염 종류 1건 — type은 `trash`(고형 쓰레기) 또는 `spill`(액체·얼룩) */
     public record PollutionClass(String type, BigDecimal areaRatio) {

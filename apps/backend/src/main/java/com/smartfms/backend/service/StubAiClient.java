@@ -33,6 +33,6 @@ public class StubAiClient implements AiClient {
             classes = List.of(new PollutionClass("trash", trash), new PollutionClass("spill", spill));
         }
 
-        return new AiPredictResponse(total, classes, new BigDecimal("0.900"), new BigDecimal("0.850"));
+        return new AiPredictResponse(total, classes, new BigDecimal("0.900"));
     }
 }

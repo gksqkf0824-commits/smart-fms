@@ -48,7 +48,6 @@ CREATE TABLE inspections (
     spill_ratio           NUMERIC(4,3) NOT NULL DEFAULT 0 CHECK (spill_ratio BETWEEN 0 AND 1),
     grade                 VARCHAR(10)  NOT NULL
                           CHECK (grade IN ('NORMAL', 'WARN', 'BLOCK')),
-    iou                   NUMERIC(4,3) CHECK (iou BETWEEN 0 AND 1),
     image_key             VARCHAR(255),                -- S3 경로 문자열만 저장 (BLOB 금지)
     created_at            TIMESTAMP    NOT NULL DEFAULT now()
 );
