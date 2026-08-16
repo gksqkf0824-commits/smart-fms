@@ -10,11 +10,14 @@ const gradeConfig = {
   BLOCK:  { label: '심각', color: '#991b1b', light: '#fef2f2' },
 }
 
+const classLabel = { trash: '고형 쓰레기', occupy: '두고 간 소지품' }
+
 const actionLabel = {
-  dispatch_blocked:  '배차 차단',
-  carwash_requested: '세차 접수',
-  penalty_reserved:  '패널티 예약',
-  notified:          '알림 전송',
+  dispatch_blocked:    '배차 차단',
+  carwash_requested:   '세차 접수',
+  penalty_reserved:    '패널티 예약',
+  notified:            '알림 전송',
+  belongings_notified: '소지품이 발견되어 안내드렸습니다',
 }
 
 const mockData = {
@@ -27,10 +30,10 @@ const mockData = {
     roi_pollution_ratio: 0.235,
     classes: [
       { type: 'trash', area_ratio: 0.14 },
-      { type: 'spill', area_ratio: 0.09 },
+      { type: 'occupy', area_ratio: 0.09 },
     ],
     grade: 'BLOCK',
-    actions: ['dispatch_blocked', 'carwash_requested', 'penalty_reserved', 'notified'],
+    actions: ['dispatch_blocked', 'carwash_requested', 'penalty_reserved', 'notified', 'belongings_notified'],
     image_key: 'inspections/2026/12가3456_2037.jpg',
   }
 }
@@ -146,7 +149,7 @@ export default function VehicleDetail() {
                   <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '10px', borderBottom: i < ins.classes.length - 1 ? '1px solid #f3f4f6' : 'none' }}>
                     <div>
                       <div style={{ fontSize: '13px', fontWeight: '500', color: '#374151' }}>
-                        {c.type === 'trash' ? '고형 쓰레기' : '액체·얼룩'}
+                        {classLabel[c.type] ?? c.type}
                       </div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
