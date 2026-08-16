@@ -1,4 +1,7 @@
+import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+
+const API_BASE = 'http://localhost:8080'
 
 const statusLabel = { AVAILABLE: '운행 가능', CARWASH_NEEDED: '세차 필요', INSPECTING: '검수 중' }
 const statusColor = { AVAILABLE: '#16a34a', CARWASH_NEEDED: '#92400e', INSPECTING: '#991b1b' }
@@ -46,6 +49,18 @@ export default function VehicleDetail() {
   const grade = ins ? gradeConfig[ins.grade] : null
   const pollPct = ins ? (ins.roi_pollution_ratio * 100).toFixed(1) : null
 
+  const [imageUrl, setImageUrl] = useState(null)
+  const [imageLoading, setImageLoading] = useState(true)
+
+  useEffect(() => {
+    setImageLoading(true)
+    fetch(`${API_BASE}/vehicles/${data.plate}`)
+      .then(res => res.json())
+      .then(json => setImageUrl(json.image_url ?? null))
+      .catch(() => setImageUrl(null))
+      .finally(() => setImageLoading(false))
+  }, [data.plate])
+
   return (
     <div style={{ padding: '32px 40px', background: '#f9fafb', minHeight: '100vh' }}>
 
@@ -82,43 +97,25 @@ export default function VehicleDetail() {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: '24px' }}>
 
           {/* 좌측 — 이미지 */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <div style={{ background: '#fff', borderRadius: '10px', border: '1px solid #e5e7eb', overflow: 'hidden' }}>
-              <div style={{ padding: '14px 18px', borderBottom: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '13px', fontWeight: '600', color: '#374151' }}>원본 사진</span>
-                <span style={{ fontSize: '11px', color: '#9ca3af' }}>반납 시 자동 촬영</span>
-              </div>
-              <div style={{ height: '260px', background: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '6px' }}>
-                <div style={{ fontSize: '13px', color: '#9ca3af' }}>이미지 로드 중</div>
-                <div style={{ fontSize: '11px', color: '#d1d5db' }}>{ins.image_key}</div>
-              </div>
+          <div style={{ background: '#fff', borderRadius: '10px', border: '1px solid #e5e7eb', overflow: 'hidden', alignSelf: 'flex-start' }}>
+            <div style={{ padding: '14px 18px', borderBottom: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '13px', fontWeight: '600', color: '#374151' }}>원본 사진</span>
+              <span style={{ fontSize: '11px', color: '#9ca3af' }}>반납 시 자동 촬영</span>
             </div>
-
-            <div style={{ background: '#fff', borderRadius: '10px', border: '1px solid #e5e7eb', overflow: 'hidden' }}>
-              <div style={{ padding: '14px 18px', borderBottom: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '13px', fontWeight: '600', color: '#374151' }}>AI 마스크 오버레이</span>
-                <span style={{ fontSize: '11px', color: '#9ca3af' }}>YOLO11-Seg</span>
-              </div>
-              <div style={{ height: '260px', background: '#fafafa', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
-                <div style={{ fontSize: '13px', color: '#9ca3af' }}>마스크 결과 이미지</div>
-                <div style={{
-                  position: 'absolute', top: '20%', left: '12%', width: '70%', height: '55%',
-                  background: `${grade.color}12`,
-                  border: `1.5px dashed ${grade.color}60`,
-                  borderRadius: '6px',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: '13px', fontWeight: '600', color: grade.color,
-                }}>
-                  오염 감지 영역 {pollPct}%
-                </div>
-              </div>
+            <div style={{ height: '440px', background: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              {imageLoading ? (
+                <div style={{ fontSize: '13px', color: '#9ca3af' }}>이미지 불러오는 중…</div>
+              ) : imageUrl ? (
+                <img src={imageUrl} alt="차량 실내 사진" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : (
+                <div style={{ fontSize: '13px', color: '#9ca3af' }}>사진 없음</div>
+              )}
             </div>
           </div>
 
           {/* 우측 — 분석 결과 */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
-            {/* 판정 결과 */}
             <div style={{ background: '#fff', borderRadius: '10px', border: '1px solid #e5e7eb', padding: '20px' }}>
               <div style={{ fontSize: '11px', fontWeight: '600', color: '#9ca3af', letterSpacing: '0.5px', marginBottom: '14px', textTransform: 'uppercase' }}>판정 결과</div>
               <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: '16px' }}>
@@ -141,7 +138,6 @@ export default function VehicleDetail() {
               </div>
             </div>
 
-            {/* 감지 항목 */}
             <div style={{ background: '#fff', borderRadius: '10px', border: '1px solid #e5e7eb', padding: '20px' }}>
               <div style={{ fontSize: '11px', fontWeight: '600', color: '#9ca3af', letterSpacing: '0.5px', marginBottom: '14px', textTransform: 'uppercase' }}>감지 항목</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -163,7 +159,6 @@ export default function VehicleDetail() {
               </div>
             </div>
 
-            {/* 자동 처리 */}
             <div style={{ background: '#fff', borderRadius: '10px', border: '1px solid #e5e7eb', padding: '20px' }}>
               <div style={{ fontSize: '11px', fontWeight: '600', color: '#9ca3af', letterSpacing: '0.5px', marginBottom: '14px', textTransform: 'uppercase' }}>자동 처리 결과</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
