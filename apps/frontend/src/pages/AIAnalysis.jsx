@@ -138,7 +138,7 @@ export default function AIAnalysis() {
           <div style={{ padding: '14px 18px', borderBottom: '1px solid #1e2235' }}>
             <div style={{ fontSize: '10px', color: '#4f8ef7', fontWeight: '700', letterSpacing: '0.5px', marginBottom: '10px' }}>모델 통계</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-              {[['추론 속도', '24fps', '#22c55e'], ['처리 시간', '41.7ms', '#22c55e'], ['mAP', '0.93', '#4f8ef7'], ['감지 수', `${data.classes.length}건`, '#f59e0b']].map(([l, v, c]) => (
+              {[['추론 속도', '24fps', '#22c55e'], ['처리 시간', '41.7ms', '#22c55e'], ['mAP50', '0.909', '#4f8ef7'], ['감지 수', `${data.classes.length}건`, '#f59e0b']].map(([l, v, c]) => (
                 <div key={l} style={{ background: '#111827', borderRadius: '6px', padding: '10px 12px', border: '1px solid #1e2235' }}>
                   <div style={{ fontSize: '10px', color: '#4a5568', marginBottom: '4px' }}>{l}</div>
                   <div style={{ fontSize: '18px', fontWeight: '800', color: c }}>{v}</div>

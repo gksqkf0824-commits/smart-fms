@@ -8,6 +8,7 @@ import ReturnAccept from './pages/ReturnAccept'
 import Penalty from './pages/Penalty'
 import AlertPage from './pages/AlertPage'
 import Login from './pages/Login'
+import CustomerReturn from './pages/CustomerReturn'
 
 function Layout({ children }) {
   return (
@@ -25,6 +26,7 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/customer" element={<CustomerReturn />} />
         <Route path="/" element={<Layout><Home /></Layout>} />
         <Route path="/vehicles" element={<Layout><VehicleList /></Layout>} />
         <Route path="/vehicles/:id" element={<Layout><VehicleDetail /></Layout>} />
