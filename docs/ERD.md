@@ -55,20 +55,22 @@ vehicles (차량) 1──< inspections (반납 검수) >──1 (오염 결과 �
 
 ## 3. inspections — 반납 검수 (핵심 테이블)
 
-> 반납 1건마다 1행 생성. AI 오염 분석 결과를 저장.
+> 반납 1건마다 1행 생성. AI 분석 결과를 저장.
 
 | 컬럼 | 타입 | 설명 |
 |---|---|---|
 | id | BIGSERIAL PK | 검수 ID |
 | vehicle_id | BIGINT FK → vehicles | 대상 차량 |
 | user_id | BIGINT FK → users | 반납한 이용자 (직전 이용자) |
-| roi_pollution_ratio | NUMERIC(4,3) | 합산 오염도 (0.000~1.000) |
+| roi_pollution_ratio | NUMERIC(4,3) | 오염도 (0.000~1.000) — 쓰레기 기준, 등급 판정에 사용 |
 | trash_ratio | NUMERIC(4,3) | 고형 쓰레기 면적 비율 |
-| spill_ratio | NUMERIC(4,3) | 액체·얼룩 면적 비율 |
+| occupy_ratio | NUMERIC(4,3) | 두고 간 소지품 면적 비율 |
 | grade | VARCHAR(10) | `NORMAL` / `WARN` / `BLOCK` |
-| iou | NUMERIC(4,3) | 면적 정확도 (검증용) |
 | image_key | VARCHAR(255) | **S3 경로만 저장** (이미지 바이너리 X) |
 | created_at | TIMESTAMP | 반납·검수 시각 |
+
+> **소지품(`occupy`)은 오염이 아닙니다.** 등급 판정(`roi_pollution_ratio`)에는 포함되지 않고,
+> 면적과 무관하게 감지되기만 하면 이용자에게 소지품 안내가 나갑니다.
 
 > ⚠️ **image_key는 S3 경로 문자열만.** 이미지 파일 자체는 절대 DB에 넣지 않음 (부하 방지).
 > 조회 시 이 경로로 presigned URL 발급.
@@ -85,8 +87,12 @@ vehicles (차량) 1──< inspections (반납 검수) >──1 (오염 결과 �
 | vehicle_id | BIGINT FK → vehicles | 대상 차량 |
 | user_id | BIGINT FK → users | 배차받은 이용자 |
 | status | VARCHAR(20) | `RESERVED` / `IN_USE` / `RETURNED` / `BLOCKED` / `SWAPPED` |
-| swapped_to | BIGINT NULL | Swap된 경우 대체 차량 ID |
+| swapped_to | BIGINT FK → vehicles (NULL 허용) | Swap된 경우 대체 차량 |
 | created_at | TIMESTAMP | 배차 시각 |
+
+> **`BLOCKED`와 `SWAPPED` 구분:** 오염으로 배차를 막았을 때, 대체 차량을 찾아 배정했으면
+> `SWAPPED`(+`swapped_to`), 여유 차량이 없어 예약이 취소됐으면 `BLOCKED`.
+> `BLOCKED` 건수는 해당 존의 여유 차량 부족을 나타내는 운영 지표가 됩니다.
 
 ---
 
@@ -128,6 +134,11 @@ vehicles (차량) 1──< inspections (반납 검수) >──1 (오염 결과 �
 - `vehicles` 1 : N `dispatches` (차량 1대가 여러 번 배차)
 
 ## 설계 메모
-- 오염 분석의 클래스가 2종(`trash`/`spill`)이라 컬럼 2개로 단순화. 클래스가 늘면
+- AI 감지 클래스가 2종(`trash`/`occupy`)이라 컬럼 2개로 단순화. 클래스가 늘면
   별도 `inspection_classes` 테이블로 분리.
 - 시연 범위에선 users·dispatches를 더미로 최소화해도 됨. 핵심은 inspections + 조치.
+
+## 변경 이력
+| 날짜 | 변경 | 담당 |
+|---|---|---|
+| 2026-08-16 | `spill_ratio` → `occupy_ratio` (감지 클래스 변경), `iou` 컬럼 제거(API.md 개정 반영) | 김민아 |
