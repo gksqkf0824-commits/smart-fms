@@ -4,6 +4,8 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,6 +36,8 @@ import lombok.RequiredArgsConstructor;
 @Service
 @RequiredArgsConstructor
 public class InspectionService {
+
+    private static final Logger log = LoggerFactory.getLogger(InspectionService.class);
 
     private final VehicleRepository vehicleRepository;
     private final InspectionRepository inspectionRepository;
@@ -75,7 +79,7 @@ public class InspectionService {
         AiPredictResponse ai = aiClient.predict(image);
         BigDecimal ratio = ai.roiPollutionRatio() != null ? ai.roiPollutionRatio() : BigDecimal.ZERO;
         BigDecimal trashRatio = ai.ratioOf("trash");
-        BigDecimal spillRatio = ai.ratioOf("spill");
+        BigDecimal occupyRatio = ai.ratioOf("occupy");
 
         // 3. 등급 판정
         Grade grade = judgeGrade(ratio);
@@ -95,7 +99,7 @@ public class InspectionService {
                 .user(previousUser)
                 .roiPollutionRatio(ratio)
                 .trashRatio(trashRatio)
-                .spillRatio(spillRatio)
+                .occupyRatio(occupyRatio)
                 .grade(grade)
                 .imageKey(imageKey)
                 .build());
@@ -109,9 +113,8 @@ public class InspectionService {
             actions.add("dispatch_blocked");
         }
 
-        // 6-2. 세차 — BLOCK이거나, spill(액체·얼룩)이 감지되면 양이 적어도 호출
-        boolean spillDetected = spillRatio.compareTo(BigDecimal.ZERO) > 0;
-        if (grade == Grade.BLOCK || spillDetected) {
+        // 6-2. 세차 — BLOCK 등급일 때 호출
+        if (grade == Grade.BLOCK) {
             carwashRequestRepository.save(CarwashRequest.builder()
                     .vehicle(vehicle)
                     .inspection(inspection)
@@ -139,6 +142,12 @@ public class InspectionService {
             actions.add("notified");
         }
 
+        // 6-5. 소지품 — 면적과 무관하게 하나라도 감지되면 이용자에게 안내
+        if (occupyRatio.compareTo(BigDecimal.ZERO) > 0) {
+            notifyBelongings(plate, previousUser);
+            actions.add("belongings_notified");
+        }
+
         // 7. 차량 상태 갱신 — 세차가 걸리면 세차 필요, 아니면 운행 가능
         vehicle.changeStatus(actions.contains("carwash_requested")
                 ? VehicleStatus.CARWASH_NEEDED
@@ -147,7 +156,13 @@ public class InspectionService {
         return new ReturnResponse(plate, ratio, ai.classes(), grade, actions, imageKey);
     }
 
-    /** 오염도 → 등급 (~10% NORMAL / 10~30% WARN / 30%~ BLOCK) */
+    /** 두고 간 소지품 안내 — 고객 알림 채널(문자·푸시) 연동 전까지 로그로 대체 */
+    private void notifyBelongings(String plate, User previousUser) {
+        String recipient = previousUser != null ? previousUser.getName() : "직전 이용자 미상";
+        log.warn("[소지품 감지] 차량={} 안내대상={}", plate, recipient);
+    }
+
+    /** 오염도(쓰레기 비율) → 등급 (~10% NORMAL / 10~30% WARN / 30%~ BLOCK) */
     private Grade judgeGrade(BigDecimal ratio) {
         if (ratio.compareTo(warnThreshold) < 0) {
             return Grade.NORMAL;

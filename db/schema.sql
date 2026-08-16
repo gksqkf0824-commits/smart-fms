@@ -45,7 +45,7 @@ CREATE TABLE inspections (
     user_id               BIGINT       REFERENCES users(id),   -- 반납한 직전 이용자
     roi_pollution_ratio   NUMERIC(4,3) NOT NULL CHECK (roi_pollution_ratio BETWEEN 0 AND 1),
     trash_ratio           NUMERIC(4,3) NOT NULL DEFAULT 0 CHECK (trash_ratio BETWEEN 0 AND 1),
-    spill_ratio           NUMERIC(4,3) NOT NULL DEFAULT 0 CHECK (spill_ratio BETWEEN 0 AND 1),
+    occupy_ratio          NUMERIC(4,3) NOT NULL DEFAULT 0 CHECK (occupy_ratio BETWEEN 0 AND 1),
     grade                 VARCHAR(10)  NOT NULL
                           CHECK (grade IN ('NORMAL', 'WARN', 'BLOCK')),
     image_key             VARCHAR(255),                -- S3 경로 문자열만 저장 (BLOB 금지)

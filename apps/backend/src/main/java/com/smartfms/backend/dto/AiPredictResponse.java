@@ -12,7 +12,7 @@ public record AiPredictResponse(
         List<PollutionClass> classes,   // 종류별 면적 비율
         BigDecimal confidence
 ) {
-    /** 오염 종류 1건 — type은 `trash`(고형 쓰레기) 또는 `spill`(액체·얼룩) */
+    /** 감지 항목 1건 — type은 `trash`(고형 쓰레기) 또는 `occupy`(두고 간 소지품) */
     public record PollutionClass(String type, BigDecimal areaRatio) {
     }
 

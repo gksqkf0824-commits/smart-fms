@@ -42,10 +42,10 @@ public class Inspection {
     @Builder.Default
     private BigDecimal trashRatio = BigDecimal.ZERO;
 
-    /** 액체·얼룩 면적 비율 */
-    @Column(name = "spill_ratio", nullable = false, precision = 4, scale = 3)
+    /** 두고 간 소지품 면적 비율 */
+    @Column(name = "occupy_ratio", nullable = false, precision = 4, scale = 3)
     @Builder.Default
-    private BigDecimal spillRatio = BigDecimal.ZERO;
+    private BigDecimal occupyRatio = BigDecimal.ZERO;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 10)

@@ -67,8 +67,8 @@ public class VehicleService {
         if (isPositive(inspection.getTrashRatio())) {
             classes.add(new PollutionClass("trash", inspection.getTrashRatio()));
         }
-        if (isPositive(inspection.getSpillRatio())) {
-            classes.add(new PollutionClass("spill", inspection.getSpillRatio()));
+        if (isPositive(inspection.getOccupyRatio())) {
+            classes.add(new PollutionClass("occupy", inspection.getOccupyRatio()));
         }
         return classes;
     }
@@ -90,6 +90,9 @@ public class VehicleService {
         }
         if (inspection.getGrade() != Grade.NORMAL) {
             actions.add("notified");
+        }
+        if (isPositive(inspection.getOccupyRatio())) {
+            actions.add("belongings_notified");
         }
         return actions;
     }
