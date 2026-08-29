@@ -1,13 +1,13 @@
 const penalties = [
-  { user: '홍길동', plate: '12가3456', checked_at: '07.05 14:32', roi_pollution_ratio: 0.235, trash_count: 2, occupy_detected: true,  points: 50000, settled: false, user_alert: true  },
-  { user: '김철수', plate: '34나7890', checked_at: '07.05 13:15', roi_pollution_ratio: 0.082, trash_count: 1, occupy_detected: false, points: 20000, settled: true,  user_alert: false },
-  { user: '이영희', plate: '90마2345', checked_at: '07.04 18:00', roi_pollution_ratio: 0.310, trash_count: 3, occupy_detected: true,  points: 80000, settled: false, user_alert: true  },
-  { user: '박민수', plate: '78라5678', checked_at: '07.04 11:20', roi_pollution_ratio: 0.124, trash_count: 0, occupy_detected: true,  points: 30000, settled: true,  user_alert: true  },
+  { user: '홍길동', plate: '12가3456', checked_at: '07.05 14:32', roi_pollution_ratio: 0.235, trash_count: 2, trash_large: false, occupy_detected: true,  points: 50000, settled: false, user_alert: true  },
+  { user: '김철수', plate: '34나7890', checked_at: '07.05 13:15', roi_pollution_ratio: 0.082, trash_count: 1, trash_large: false, occupy_detected: false, points: 20000, settled: true,  user_alert: false },
+  { user: '이영희', plate: '90마2345', checked_at: '07.04 18:00', roi_pollution_ratio: 0.310, trash_count: 3, trash_large: true,  occupy_detected: true,  points: 80000, settled: false, user_alert: true  },
+  { user: '박민수', plate: '78라5678', checked_at: '07.04 11:20', roi_pollution_ratio: 0.124, trash_count: 0, trash_large: false, occupy_detected: true,  points: 30000, settled: true,  user_alert: true  },
 ]
 
 function getDetectionText(p) {
   const items = []
-  if (p.trash_count > 0) items.push(`고형 쓰레기 ${p.trash_count}개`)
+  if (p.trash_count > 0) items.push(`고형 쓰레기 ${p.trash_count}개${p.trash_large ? ' (대형)' : ''}`)
   if (p.occupy_detected) items.push('두고 간 소지품')
   return items.join(', ') || '-'
 }

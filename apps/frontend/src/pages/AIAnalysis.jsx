@@ -15,6 +15,7 @@ const mockResult = {
   checked_at: '2026-07-05T14:32:00',
   roi_pollution_ratio: 0.235,
   trash_count: 3,
+  trash_large: true,
   occupy_detected: true,
   grade: 'BLOCK',
   user_alert: true,
@@ -63,7 +64,6 @@ export default function AIAnalysis() {
 
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
 
-        {/* 좌측 — 차량 정보 */}
         <div style={{ width: '180px', background: '#0d0f1a', borderRight: '1px solid #1e2235', padding: '14px 10px', display: 'flex', flexDirection: 'column', gap: '10px', flexShrink: 0 }}>
           <div style={{ fontSize: '10px', color: '#4f8ef7', fontWeight: '700', letterSpacing: '0.5px', paddingBottom: '6px', borderBottom: '1px solid #1e2235' }}>차량 정보</div>
           <div style={{ background: '#111827', borderRadius: '6px', padding: '10px 12px', border: '1px solid #1e2235' }}>
@@ -77,7 +77,6 @@ export default function AIAnalysis() {
           </button>
         </div>
 
-        {/* 가운데 — 이미지 */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#0d0f1a', minWidth: 0 }}>
           <div style={{ background: '#0f1117', borderBottom: '1px solid #1e2235', padding: '0 12px', height: '32px', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
             <span style={{ fontSize: '11px', color: '#8892b0' }}>반납 시 촬영 사진 · {data.vehicle}</span>
@@ -91,10 +90,8 @@ export default function AIAnalysis() {
           </div>
         </div>
 
-        {/* 우측 — 분석 결과 */}
         <div style={{ width: '280px', background: '#0d0f1a', borderLeft: '1px solid #1e2235', display: 'flex', flexDirection: 'column', flexShrink: 0, overflowY: 'auto' }}>
 
-          {/* 오염도 */}
           <div style={{ padding: '16px 18px', borderBottom: '1px solid #1e2235' }}>
             <div style={{ fontSize: '10px', color: '#4f8ef7', fontWeight: '700', letterSpacing: '0.5px', marginBottom: '10px' }}>오염도 스코어</div>
             <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: '6px' }}>
@@ -111,7 +108,6 @@ export default function AIAnalysis() {
             </div>
           </div>
 
-          {/* 감지 항목 */}
           <div style={{ padding: '14px 18px', borderBottom: '1px solid #1e2235' }}>
             <div style={{ fontSize: '10px', color: '#4f8ef7', fontWeight: '700', letterSpacing: '0.5px', marginBottom: '10px' }}>감지 항목 [{detectionCount}건]</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -121,6 +117,9 @@ export default function AIAnalysis() {
                     <span style={{ fontSize: '12px', color: '#cdd6f4', fontWeight: '600' }}>고형 쓰레기</span>
                     <span style={{ fontSize: '10px', color: '#f59e0b', fontWeight: '700' }}>{data.trash_count}개</span>
                   </div>
+                  {data.trash_large && (
+                    <div style={{ fontSize: '10px', color: '#ef4444', marginTop: '2px' }}>대형 쓰레기 포함</div>
+                  )}
                 </div>
               )}
               {data.occupy_detected && (
@@ -137,7 +136,6 @@ export default function AIAnalysis() {
             </div>
           </div>
 
-          {/* 모델 통계 */}
           <div style={{ padding: '14px 18px', borderBottom: '1px solid #1e2235' }}>
             <div style={{ fontSize: '10px', color: '#4f8ef7', fontWeight: '700', letterSpacing: '0.5px', marginBottom: '10px' }}>모델 통계</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
@@ -150,7 +148,6 @@ export default function AIAnalysis() {
             </div>
           </div>
 
-          {/* 자동 처리 */}
           <div style={{ padding: '14px 18px' }}>
             <div style={{ fontSize: '10px', color: '#4f8ef7', fontWeight: '700', letterSpacing: '0.5px', marginBottom: '10px' }}>자동 처리 결과</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>

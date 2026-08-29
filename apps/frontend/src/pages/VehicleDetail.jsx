@@ -29,6 +29,7 @@ const mockData = {
   latest_inspection: {
     roi_pollution_ratio: 0.235,
     trash_count: 3,
+    trash_large: true,
     occupy_detected: true,
     grade: 'BLOCK',
     user_alert: true,
@@ -41,7 +42,7 @@ const mockData = {
 export default function VehicleDetail() {
   const navigate = useNavigate()
   const { id } = useParams()
-  const [data, setData] = useState({ ...mockData, plate: id ?? mockData.plate })
+  const [data] = useState({ ...mockData, plate: id ?? mockData.plate })
   const [imageUrl, setImageUrl] = useState(null)
   const [imageLoading, setImageLoading] = useState(true)
 
@@ -65,23 +66,19 @@ export default function VehicleDetail() {
   return (
     <div style={{ padding: '32px 40px', background: '#f9fafb', minHeight: '100vh' }}>
 
-      {/* 브레드크럼 */}
       <div style={{ fontSize: '12px', color: '#9ca3af', marginBottom: '20px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }} onClick={() => navigate('/vehicles')}>
         <span>차량 목록</span>
         <span>/</span>
         <span style={{ color: '#374151' }}>{data.plate}</span>
       </div>
 
-      {/* 헤더 */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '32px' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '6px' }}>
             <h1 style={{ fontSize: '24px', fontWeight: '700', color: '#111827', margin: 0 }}>{data.plate}</h1>
-            <span style={{
-              fontSize: '11px', fontWeight: '600', padding: '3px 10px', borderRadius: '4px',
-              color: statusColor[data.status], background: statusBg[data.status],
-              border: `1px solid ${statusColor[data.status]}30`
-            }}>{statusLabel[data.status]}</span>
+            <span style={{ fontSize: '11px', fontWeight: '600', padding: '3px 10px', borderRadius: '4px', color: statusColor[data.status], background: statusBg[data.status], border: `1px solid ${statusColor[data.status]}30` }}>
+              {statusLabel[data.status]}
+            </span>
           </div>
           <div style={{ fontSize: '13px', color: '#6b7280' }}>
             {data.model} &nbsp;·&nbsp; {data.zone} &nbsp;·&nbsp; 반납{' '}
@@ -98,7 +95,6 @@ export default function VehicleDetail() {
       {ins && grade && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: '24px' }}>
 
-          {/* 좌측 — 이미지 */}
           <div style={{ background: '#fff', borderRadius: '10px', border: '1px solid #e5e7eb', overflow: 'hidden', alignSelf: 'flex-start' }}>
             <div style={{ padding: '14px 18px', borderBottom: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '13px', fontWeight: '600', color: '#374151' }}>원본 사진</span>
@@ -115,10 +111,8 @@ export default function VehicleDetail() {
             </div>
           </div>
 
-          {/* 우측 — 분석 결과 */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
-            {/* 판정 결과 */}
             <div style={{ background: '#fff', borderRadius: '10px', border: '1px solid #e5e7eb', padding: '20px' }}>
               <div style={{ fontSize: '11px', fontWeight: '600', color: '#9ca3af', letterSpacing: '0.5px', marginBottom: '14px', textTransform: 'uppercase' }}>판정 결과</div>
               <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: '16px' }}>
@@ -141,14 +135,18 @@ export default function VehicleDetail() {
               </div>
             </div>
 
-            {/* 감지 항목 */}
             <div style={{ background: '#fff', borderRadius: '10px', border: '1px solid #e5e7eb', padding: '20px' }}>
               <div style={{ fontSize: '11px', fontWeight: '600', color: '#9ca3af', letterSpacing: '0.5px', marginBottom: '14px', textTransform: 'uppercase' }}>감지 항목</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 {ins.trash_count > 0 && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '10px', borderBottom: ins.occupy_detected ? '1px solid #f3f4f6' : 'none' }}>
-                    <div style={{ fontSize: '13px', fontWeight: '500', color: '#374151' }}>고형 쓰레기</div>
-                    <span style={{ fontSize: '13px', fontWeight: '600', color: '#374151' }}>{ins.trash_count}개</span>
+                  <div style={{ paddingBottom: '10px', borderBottom: ins.occupy_detected ? '1px solid #f3f4f6' : 'none' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ fontSize: '13px', fontWeight: '500', color: '#374151' }}>고형 쓰레기</div>
+                      <span style={{ fontSize: '13px', fontWeight: '600', color: '#374151' }}>{ins.trash_count}개</span>
+                    </div>
+                    {ins.trash_large && (
+                      <div style={{ fontSize: '11px', color: '#ef4444', marginTop: '4px' }}>대형 쓰레기 포함</div>
+                    )}
                   </div>
                 )}
                 {ins.occupy_detected && (
@@ -163,7 +161,6 @@ export default function VehicleDetail() {
               </div>
             </div>
 
-            {/* 자동 처리 */}
             <div style={{ background: '#fff', borderRadius: '10px', border: '1px solid #e5e7eb', padding: '20px' }}>
               <div style={{ fontSize: '11px', fontWeight: '600', color: '#9ca3af', letterSpacing: '0.5px', marginBottom: '14px', textTransform: 'uppercase' }}>자동 처리 결과</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
