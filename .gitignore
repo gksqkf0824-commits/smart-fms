@@ -34,7 +34,8 @@ replay_pid*
 .LSOverride
 
 # Icon must end with two \r
-Icon
+Icon
+
 
 # Thumbnails
 ._*
@@ -270,5 +271,8 @@ $RECYCLE.BIN/
 
 # Windows shortcuts
 *.lnk
+
+#AI
+*.pt
 
 # End of https://www.toptal.com/developers/gitignore/api/java,python,react,windows,macos

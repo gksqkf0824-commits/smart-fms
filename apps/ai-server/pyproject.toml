@@ -5,8 +5,10 @@ description = "Smart FMS AI/ML inference server"
 requires-python = ">=3.13"
 dependencies = [
     "fastapi>=0.141.1",
+    "pillow>=11.0.0",
     "pydantic-settings>=2.15.0",
     "python-multipart>=0.0.32",
+    "ultralytics>=8.3.0",
     "uvicorn[standard]>=0.52.3",
 ]
 
