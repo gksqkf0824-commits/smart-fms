@@ -3,7 +3,6 @@ import { useState } from 'react'
 const gradeLabel = { BLOCK: '오염 심각', WARN: '경미한 오염', NORMAL: '정상' }
 const gradeColor = { BLOCK: '#dc2626', WARN: '#b45309', NORMAL: '#16a34a' }
 const gradeBg    = { BLOCK: '#fef2f2', WARN: '#fffbeb', NORMAL: '#f0fdf4' }
-const classLabel = { trash: '고형 쓰레기', occupy: '두고 간 소지품' }
 
 function Header() {
   return (
@@ -85,7 +84,6 @@ export default function CustomerReturn() {
 
   /* 결과 */
   if (result) {
-    const hasBelongings = result.actions?.includes('belongings_notified')
     const color = gradeColor[result.grade] ?? '#374151'
     const bg = gradeBg[result.grade] ?? '#f9fafb'
     return (
@@ -107,26 +105,35 @@ export default function CustomerReturn() {
             </div>
           </div>
 
-          {result.classes?.length > 0 && (
+          {/* 감지 항목 */}
+          {(result.trash_count > 0 || result.occupy_detected) && (
             <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: '12px', padding: '16px 20px', marginBottom: '12px' }}>
               <div style={{ fontSize: '13px', fontWeight: '700', color: '#374151', marginBottom: '10px' }}>감지 항목</div>
-              {result.classes.map((c, i) => (
-                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: i < result.classes.length - 1 ? '1px solid #f3f4f6' : 'none' }}>
-                  <span style={{ fontSize: '14px', color: '#374151' }}>{classLabel[c.type] ?? c.type}</span>
-                  <span style={{ fontSize: '14px', fontWeight: '700', color: '#1a2744' }}>{(c.area_ratio * 100).toFixed(1)}%</span>
+              {result.trash_count > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: result.occupy_detected ? '1px solid #f3f4f6' : 'none' }}>
+                  <span style={{ fontSize: '14px', color: '#374151' }}>고형 쓰레기</span>
+                  <span style={{ fontSize: '14px', fontWeight: '700', color: '#1a2744' }}>{result.trash_count}개</span>
                 </div>
-              ))}
+              )}
+              {result.occupy_detected && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0' }}>
+                  <span style={{ fontSize: '14px', color: '#374151' }}>두고 간 소지품</span>
+                  <span style={{ fontSize: '14px', fontWeight: '700', color: '#1a2744' }}>감지됨</span>
+                </div>
+              )}
             </div>
           )}
 
-          {hasBelongings && (
+          {/* 소지품 알림 */}
+          {result.user_alert && (
             <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '12px', padding: '16px 20px', marginBottom: '12px' }}>
               <div style={{ fontSize: '14px', fontWeight: '700', color: '#1d4ed8', marginBottom: '4px' }}>두고 가신 물건이 있어요</div>
               <div style={{ fontSize: '13px', color: '#3b82f6', lineHeight: '1.6' }}>소지품이 발견되어 안내드렸습니다. 분실물 센터로 문의해 주세요.</div>
             </div>
           )}
 
-          {result.grade === 'NORMAL' && !hasBelongings && (
+          {/* 정상 */}
+          {result.grade === 'NORMAL' && !result.user_alert && (
             <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '12px', padding: '16px 20px', marginBottom: '12px' }}>
               <div style={{ fontSize: '14px', fontWeight: '700', color: '#16a34a', marginBottom: '4px' }}>깨끗하게 이용해 주셨어요!</div>
               <div style={{ fontSize: '13px', color: '#22c55e' }}>반납이 정상적으로 완료되었습니다.</div>
@@ -147,7 +154,6 @@ export default function CustomerReturn() {
       <Header />
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', maxWidth: '480px', width: '100%', margin: '0 auto', padding: '16px 20px', boxSizing: 'border-box' }}>
 
-        {/* 스텝 */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <div style={{ width: '22px', height: '22px', borderRadius: '50%', background: plate ? '#1a2744' : '#e5e7eb', color: plate ? '#fff' : '#9ca3af', fontSize: '11px', fontWeight: '800', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>1</div>
@@ -165,13 +171,11 @@ export default function CustomerReturn() {
           </div>
         </div>
 
-        {/* 타이틀 */}
         <div style={{ marginBottom: '14px' }}>
           <div style={{ fontSize: '20px', fontWeight: '800', color: '#1a2744', marginBottom: '4px' }}>차량 반납</div>
           <div style={{ fontSize: '13px', color: '#9ca3af' }}>차량 번호와 실내 사진을 등록해주세요</div>
         </div>
 
-        {/* 차량 번호 */}
         <div style={{ marginBottom: '14px' }}>
           <label style={{ fontSize: '13px', fontWeight: '700', color: '#374151', display: 'block', marginBottom: '6px' }}>차량 번호</label>
           <input
@@ -182,7 +186,6 @@ export default function CustomerReturn() {
           />
         </div>
 
-        {/* 사진 업로드 */}
         <div style={{ marginBottom: '14px' }}>
           <label style={{ fontSize: '13px', fontWeight: '700', color: '#374151', display: 'block', marginBottom: '6px' }}>실내 사진</label>
           <label style={{ display: 'block', cursor: 'pointer' }}>
@@ -203,14 +206,12 @@ export default function CustomerReturn() {
           </label>
         </div>
 
-        {/* 에러 */}
         {error && (
           <div style={{ padding: '12px 14px', background: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626', borderRadius: '10px', fontSize: '13px', marginBottom: '14px', fontWeight: '600', boxShadow: '0 2px 8px rgba(220,38,38,0.12)' }}>
             {error}
           </div>
         )}
 
-        {/* 버튼 — 에러 없으면 사진 바로 아래, 있으면 에러 바로 아래 */}
         <button
           onClick={handleSubmit}
           disabled={!plate || !file}

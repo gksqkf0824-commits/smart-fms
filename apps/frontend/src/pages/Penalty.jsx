@@ -1,13 +1,16 @@
-const gradeLabel = { BLOCK: '오염 심각', WARN: '경미한 오염' }
-const gradeColor = { BLOCK: '#dc2626', WARN: '#b45309' }
-const classLabel = { trash: '고형 쓰레기', occupy: '두고 간 소지품' }
-
 const penalties = [
-  { user: '홍길동', plate: '12가3456', checked_at: '07.05 14:32', roi_pollution_ratio: 0.235, classes: [{ type: 'trash' }, { type: 'occupy' }], points: 50000, settled: false, belongings_notified: true  },
-  { user: '김철수', plate: '34나7890', checked_at: '07.05 13:15', roi_pollution_ratio: 0.082, classes: [{ type: 'trash' }],                      points: 20000, settled: true,  belongings_notified: false },
-  { user: '이영희', plate: '90마2345', checked_at: '07.04 18:00', roi_pollution_ratio: 0.310, classes: [{ type: 'trash' }, { type: 'occupy' }], points: 80000, settled: false, belongings_notified: true  },
-  { user: '박민수', plate: '78라5678', checked_at: '07.04 11:20', roi_pollution_ratio: 0.124, classes: [{ type: 'occupy' }],                     points: 30000, settled: true,  belongings_notified: true  },
+  { user: '홍길동', plate: '12가3456', checked_at: '07.05 14:32', roi_pollution_ratio: 0.235, trash_count: 2, occupy_detected: true,  points: 50000, settled: false, user_alert: true  },
+  { user: '김철수', plate: '34나7890', checked_at: '07.05 13:15', roi_pollution_ratio: 0.082, trash_count: 1, occupy_detected: false, points: 20000, settled: true,  user_alert: false },
+  { user: '이영희', plate: '90마2345', checked_at: '07.04 18:00', roi_pollution_ratio: 0.310, trash_count: 3, occupy_detected: true,  points: 80000, settled: false, user_alert: true  },
+  { user: '박민수', plate: '78라5678', checked_at: '07.04 11:20', roi_pollution_ratio: 0.124, trash_count: 0, occupy_detected: true,  points: 30000, settled: true,  user_alert: true  },
 ]
+
+function getDetectionText(p) {
+  const items = []
+  if (p.trash_count > 0) items.push(`고형 쓰레기 ${p.trash_count}개`)
+  if (p.occupy_detected) items.push('두고 간 소지품')
+  return items.join(', ') || '-'
+}
 
 export default function Penalty() {
   return (
@@ -44,10 +47,14 @@ export default function Penalty() {
                 <td style={{ padding: '11px 12px' }}>{p.user}</td>
                 <td style={{ padding: '11px 12px' }}>{p.plate}</td>
                 <td style={{ padding: '11px 12px' }}>{p.checked_at}</td>
-                <td style={{ padding: '11px 12px' }}><strong style={{ color: p.roi_pollution_ratio >= 0.3 ? '#ef4444' : '#f59e0b' }}>{(p.roi_pollution_ratio * 100).toFixed(1)}%</strong></td>
                 <td style={{ padding: '11px 12px' }}>
-                  {p.classes.map(c => classLabel[c.type]).join(', ')}
-                  {p.belongings_notified && (
+                  <strong style={{ color: p.roi_pollution_ratio >= 0.05 ? '#ef4444' : '#f59e0b' }}>
+                    {(p.roi_pollution_ratio * 100).toFixed(1)}%
+                  </strong>
+                </td>
+                <td style={{ padding: '11px 12px' }}>
+                  {getDetectionText(p)}
+                  {p.user_alert && (
                     <div style={{ fontSize: '10px', color: '#4f8ef7', marginTop: '4px' }}>소지품이 발견되어 안내드렸습니다</div>
                   )}
                 </td>
