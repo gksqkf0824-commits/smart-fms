@@ -1,7 +1,7 @@
 # 데이터베이스 설계 (ERD)
 
 > PostgreSQL 기준. 담당: 김주찬 (스키마 설계) · 백엔드팀 공용.
-> 변경 시 이 문서부터 수정 후 팀 공유.
+> 변경 시 이 문서부터 수정 후 팀 공유. (API 규약은 `API.md`, 합의는 `AGREEMENTS.md`)
 
 ---
 
@@ -15,14 +15,14 @@ users (이용자)
             └──────────────┘
                    │ N
                    │
-vehicles (차량) 1──< inspections (반납 검수) >──1 (오염 결과 포함)
+vehicles (차량) 1──< inspections (반납 검수) >──1 (분석 결과 포함)
    │ 1                    │ 1
    └──< dispatches        └──< carwash_requests (세차 요청)
         (배차 이력)
 ```
 
 - 핵심은 **inspections(반납 검수)** 테이블. 반납 1건 = 이 테이블 1행.
-- 오염 분석 결과·조치·사진 경로가 모두 여기에 연결됨.
+- AI 분석 결과·조치·사진 경로가 모두 여기에 연결됨.
 
 ---
 
@@ -55,22 +55,28 @@ vehicles (차량) 1──< inspections (반납 검수) >──1 (오염 결과 �
 
 ## 3. inspections — 반납 검수 (핵심 테이블)
 
-> 반납 1건마다 1행 생성. AI 분석 결과를 저장.
+> 반납 1건마다 1행 생성. AI 분석 결과(모델 2개)를 저장.
+> **오염(spill)은 면적 비율, 쓰레기(trash)는 개수**로 저장 — 감지 방식이 다르기 때문.
 
 | 컬럼 | 타입 | 설명 |
 |---|---|---|
 | id | BIGSERIAL PK | 검수 ID |
 | vehicle_id | BIGINT FK → vehicles | 대상 차량 |
 | user_id | BIGINT FK → users | 반납한 이용자 (직전 이용자) |
-| roi_pollution_ratio | NUMERIC(4,3) | 오염도 (0.000~1.000) — 쓰레기 기준, 등급 판정에 사용 |
-| trash_ratio | NUMERIC(4,3) | 고형 쓰레기 면적 비율 |
-| occupy_ratio | NUMERIC(4,3) | 두고 간 소지품 면적 비율 |
-| grade | VARCHAR(10) | `NORMAL` / `WARN` / `BLOCK` |
+| roi_pollution_ratio | NUMERIC(4,3) | **오염(spill) 면적 비율** (0.000~1.000). Segmentation 결과 |
+| trash_count | INT | **쓰레기 개수**. Detection 결과 (면적 아님) |
+| trash_large | BOOLEAN | ROI 1% 이상 대형 쓰레기 존재 여부. Detection |
+| occupy_detected | BOOLEAN | 소지품/유실물 감지 여부. Detection |
+| grade | VARCHAR(10) | 최종 등급 `NORMAL` / `WARN` / `BLOCK` (백엔드 판정) |
+| user_alert | BOOLEAN | 유실물 알림 발송 여부 (occupy 기반) |
 | image_key | VARCHAR(255) | **S3 경로만 저장** (이미지 바이너리 X) |
 | created_at | TIMESTAMP | 반납·검수 시각 |
 
-> **소지품(`occupy`)은 오염이 아닙니다.** 등급 판정(`roi_pollution_ratio`)에는 포함되지 않고,
-> 면적과 무관하게 감지되기만 하면 이용자에게 소지품 안내가 나갑니다.
+> **소지품(`occupy`)은 오염이 아닙니다.** 등급 판정(`grade`)에는 포함되지 않고,
+> 감지되기만 하면 `user_alert=true`로 이용자에게 소지품 안내가 나갑니다.
+
+> **쓰레기는 개수 기준.** `trash_count`(개수)·`trash_large`(대형 여부)로 판정하며,
+> 면적 비율은 오염(spill)에만 적용됩니다.
 
 > ⚠️ **image_key는 S3 경로 문자열만.** 이미지 파일 자체는 절대 DB에 넣지 않음 (부하 방지).
 > 조회 시 이 경로로 presigned URL 발급.
@@ -121,7 +127,7 @@ vehicles (차량) 1──< inspections (반납 검수) >──1 (오염 결과 �
 | user_id | BIGINT FK → users | 대상 이용자 |
 | inspection_id | BIGINT FK → inspections | 근거 검수 |
 | points | INT | 부과 점수 |
-| reason | VARCHAR(100) | 사유 (예: 오염도 20%) |
+| reason | VARCHAR(100) | 사유 (예: 오염도 8%, 쓰레기 3개) |
 | created_at | TIMESTAMP | 부과 시각 |
 
 ---
@@ -134,11 +140,12 @@ vehicles (차량) 1──< inspections (반납 검수) >──1 (오염 결과 �
 - `vehicles` 1 : N `dispatches` (차량 1대가 여러 번 배차)
 
 ## 설계 메모
-- AI 감지 클래스가 2종(`trash`/`occupy`)이라 컬럼 2개로 단순화. 클래스가 늘면
+- AI 분석 결과를 컬럼으로 단순화(오염 비율 1 + 쓰레기 개수·대형 여부 + 소지품 여부). 클래스가 더 늘면
   별도 `inspection_classes` 테이블로 분리.
 - 시연 범위에선 users·dispatches를 더미로 최소화해도 됨. 핵심은 inspections + 조치.
 
 ## 변경 이력
 | 날짜 | 변경 | 담당 |
 |---|---|---|
-| 2026-08-16 | `spill_ratio` → `occupy_ratio` (감지 클래스 변경), `iou` 컬럼 제거(API.md 개정 반영) | 김민아 |
+| 2026-08-16 | `spill_ratio` → `occupy_ratio` (감지 클래스 변경), `iou` 컬럼 제거 | 김민아 |
+| 2026-09-06 | 2모델 구조 정합화: 쓰레기 **개수 기준**으로 변경(`trash_ratio`/`occupy_ratio` → `trash_count`/`trash_large`/`occupy_detected`), `roi_pollution_ratio`를 **오염(spill) 전용**으로 명시, `user_alert` 추가 | 권소윤 |
