@@ -31,7 +31,7 @@ import lombok.RequiredArgsConstructor;
 
 /**
  * 반납 처리 오케스트레이터 — docs/API.md `POST /return`.
- * 사진 저장 → AI 호출 → 등급 판정 → 조치(배차/세차/패널티/알림) → DB 기록까지 조율한다.
+ * 사진 저장 → AI 호출 → 2-Track 등급 판정 → 조치(배차/세차/패널티/알림) → DB 기록까지 조율한다.
  */
 @Service
 @RequiredArgsConstructor
@@ -49,23 +49,22 @@ public class InspectionService {
     private final ImageStorage imageStorage;
     private final Notifier notifier;
 
-    /** 등급 임계치 — 운영 정책값이므로 application.yml에서 주입 (docs/AGREEMENTS.md 5번) */
-    @Value("${app.pollution.warn-threshold}")
-    private BigDecimal warnThreshold;
+    /** 오염도(spill_ratio) 임계치 — application.yml에서 주입 (docs/AGREEMENTS.md 7번) */
+    @Value("${app.pollution.warn-threshold:0.02}")
+    private BigDecimal warnThreshold; // 0.02 (2%)
 
-    @Value("${app.pollution.block-threshold}")
-    private BigDecimal blockThreshold;
+    @Value("${app.pollution.block-threshold:0.05}")
+    private BigDecimal blockThreshold; // 0.05 (5%)
 
-    @Value("${app.carwash.partner}")
+    @Value("${app.carwash.partner:강남 세차연합}")
     private String carwashPartner;
 
-    // 패널티 점수 — 확정 정책 나오면 조정 (임시값)
     private static final int WARN_PENALTY_POINTS = 5;
     private static final int BLOCK_PENALTY_POINTS = 10;
 
     /**
      * 반납 1건 처리.
-     * 1) 사진 저장 → 2) AI 분석 → 3) 등급 판정 → 4) 조치 실행 → 5) 기록
+     * 1) 사진 저장 → 2) AI 분석 → 3) 2-Track 등급 판정 → 4) 조치 실행 → 5) 기록
      */
     @Transactional
     public ReturnResponse processReturn(String plate, byte[] image) {
@@ -75,14 +74,19 @@ public class InspectionService {
         // 1. 사진 저장 — DB엔 경로(key)만 남기고 파일은 S3로 (docs/AGREEMENTS.md 3번)
         String imageKey = imageStorage.store(image, plate);
 
-        // 2. AI 분석 요청 (AI는 결과 JSON만 반환)
+        // 2. AI 분석 요청 (2개 모델 응답)
         AiPredictResponse ai = aiClient.predict(image);
-        BigDecimal ratio = ai.roiPollutionRatio() != null ? ai.roiPollutionRatio() : BigDecimal.ZERO;
-        BigDecimal trashRatio = ai.ratioOf("trash");
-        BigDecimal occupyRatio = ai.ratioOf("occupy");
+        
+        // spill_ratio 복원 및 AI 반환값 파싱
+        BigDecimal spillRatio = ai.roiPollutionRatio() != null ? ai.roiPollutionRatio() : BigDecimal.ZERO;
+        BigDecimal occupyRatio = ai.occupyRatio() != null ? ai.occupyRatio() : BigDecimal.ZERO;
+        int trashCount = ai.trashCount() != null ? ai.trashCount() : 0;
+        boolean trashLarge = Boolean.TRUE.equals(ai.trashLarge());
+        boolean occupyDetected = Boolean.TRUE.equals(ai.occupyDetected());
 
-        // 3. 등급 판정
-        Grade grade = judgeGrade(ratio);
+        // 3. 2-Track 등급 판정 (Track 1: 쓰레기, Track 2: spill 오염)
+        Grade grade = judgeGrade(spillRatio, trashCount, trashLarge);
+        boolean userAlert = occupyDetected; // 유실물 알림 플래그
 
         // 4. 직전 이용자 확인 및 이용 종료 처리
         Dispatch inUse = dispatchRepository
@@ -93,28 +97,32 @@ public class InspectionService {
             inUse.markReturned();
         }
 
-        // 5. 검수 기록 저장
+        // 5. 검수 기록 저장 (spillRatio 및 2모델 감지 결과 포함)
         Inspection inspection = inspectionRepository.save(Inspection.builder()
                 .vehicle(vehicle)
                 .user(previousUser)
-                .roiPollutionRatio(ratio)
-                .trashRatio(trashRatio)
+                .spillRatio(spillRatio)
+                .roiPollutionRatio(spillRatio) // 호환용 동일값 입력
                 .occupyRatio(occupyRatio)
+                .trashCount(trashCount)
+                .trashLarge(trashLarge)
+                .occupyDetected(occupyDetected)
                 .grade(grade)
+                .userAlert(userAlert)
                 .imageKey(imageKey)
                 .build());
 
-        // 6. 등급별 조치 (docs/AGREEMENTS.md 5번)
+        // 6. 등급별 조치 (docs/AGREEMENTS.md 7번)
         List<String> actions = new ArrayList<>();
 
-        // 6-1. BLOCK(30%~): 배차 차단 + Swap
+        // 6-1. BLOCK: 배차 차단 + Swap
         if (grade == Grade.BLOCK) {
             dispatchService.swapNextDispatch(vehicle.getId());
             actions.add("dispatch_blocked");
         }
 
-        // 6-2. 세차 — BLOCK 등급일 때 호출
-        if (grade == Grade.BLOCK) {
+        // 6-2. 세차 — BLOCK 또는 WARN 등급 시 세차 요청
+        if (grade == Grade.BLOCK || grade == Grade.WARN) {
             carwashRequestRepository.save(CarwashRequest.builder()
                     .vehicle(vehicle)
                     .inspection(inspection)
@@ -123,50 +131,78 @@ public class InspectionService {
             actions.add("carwash_requested");
         }
 
-        // 6-3. WARN(10~30%) 이상: 직전 이용자에게 패널티 부과
+        // 6-3. 패널티 부과 (WARN 이상)
         if (grade != Grade.NORMAL && previousUser != null) {
             int points = grade == Grade.BLOCK ? BLOCK_PENALTY_POINTS : WARN_PENALTY_POINTS;
+            String reason = String.format("오염도 %.1f%%, 쓰레기 %d개", 
+                    spillRatio.multiply(BigDecimal.valueOf(100)).doubleValue(), trashCount);
+
             penaltyRepository.save(Penalty.builder()
                     .user(previousUser)
                     .inspection(inspection)
                     .points(points)
-                    .reason("오염도 " + ratio.multiply(BigDecimal.valueOf(100)).intValue() + "%")
+                    .reason(reason)
                     .build());
             previousUser.addPenaltyPoints(points);
             actions.add("penalty_reserved");
         }
 
-        // 6-4. 알림 — NORMAL이 아니면 발송 (WARN·BLOCK 모두, PM 확정)
+        // 6-4. 알림 — NORMAL이 아니면 발송
         if (grade != Grade.NORMAL) {
-            notifier.notify(plate, ratio, grade, grade == Grade.BLOCK);
+            notifier.notify(plate, spillRatio, grade, grade == Grade.BLOCK);
             actions.add("notified");
         }
 
-        // 6-5. 소지품 — 면적과 무관하게 하나라도 감지되면 이용자에게 안내
-        if (occupyRatio.compareTo(BigDecimal.ZERO) > 0) {
+        // 6-5. 유실물(occupy) 알림
+        if (userAlert) {
             notifyBelongings(plate, previousUser);
-            actions.add("belongings_notified");
+            actions.add("user_alerted");
         }
 
-        // 7. 차량 상태 갱신 — 세차가 걸리면 세차 필요, 아니면 운행 가능
+        // 7. 차량 상태 갱신 — 세차 요청 시 CARWASH_NEEDED, 아니면 AVAILABLE
         vehicle.changeStatus(actions.contains("carwash_requested")
                 ? VehicleStatus.CARWASH_NEEDED
                 : VehicleStatus.AVAILABLE);
 
-        return new ReturnResponse(plate, ratio, ai.classes(), grade, actions, imageKey);
+        return new ReturnResponse(plate, spillRatio, trashCount, occupyDetected, grade, userAlert, actions, imageKey);
     }
 
-    /** 두고 간 소지품 안내 — 고객 알림 채널(문자·푸시) 연동 전까지 로그로 대체 */
+    /** 두고 간 소지품 안내 로그 */
     private void notifyBelongings(String plate, User previousUser) {
         String recipient = previousUser != null ? previousUser.getName() : "직전 이용자 미상";
         log.warn("[소지품 감지] 차량={} 안내대상={}", plate, recipient);
     }
 
-    /** 오염도(쓰레기 비율) → 등급 (~10% NORMAL / 10~30% WARN / 30%~ BLOCK) */
-    private Grade judgeGrade(BigDecimal ratio) {
-        if (ratio.compareTo(warnThreshold) < 0) {
-            return Grade.NORMAL;
+    /**
+     * 명세서(API.md 2번) 기준 2-Track 등급 판정
+     * Track 1 (쓰레기): 대형 1개↑ 또는 3개↑ -> BLOCK / 1~2개 -> WARN
+     * Track 2 (오염도): 5%↑ -> BLOCK / 2~5% -> WARN
+     * Overriding: 더 심각한 등급 적용
+     */
+    private Grade judgeGrade(BigDecimal spillRatio, int trashCount, boolean trashLarge) {
+        // Track 1: 쓰레기 판정
+        Grade trashGrade = Grade.NORMAL;
+        if (trashLarge || trashCount >= 3) {
+            trashGrade = Grade.BLOCK;
+        } else if (trashCount >= 1) {
+            trashGrade = Grade.WARN;
         }
-        return ratio.compareTo(blockThreshold) < 0 ? Grade.WARN : Grade.BLOCK;
+
+        // Track 2: spill 오염도 판정 (5% BLOCK / 2% WARN)
+        Grade spillGrade = Grade.NORMAL;
+        if (spillRatio.compareTo(blockThreshold) >= 0) {
+            spillGrade = Grade.BLOCK;
+        } else if (spillRatio.compareTo(warnThreshold) >= 0) {
+            spillGrade = Grade.WARN;
+        }
+
+        // Overriding (BLOCK > WARN > NORMAL)
+        if (trashGrade == Grade.BLOCK || spillGrade == Grade.BLOCK) {
+            return Grade.BLOCK;
+        }
+        if (trashGrade == Grade.WARN || spillGrade == Grade.WARN) {
+            return Grade.WARN;
+        }
+        return Grade.NORMAL;
     }
 }

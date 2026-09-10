@@ -5,11 +5,10 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import com.smartfms.backend.domain.VehicleStatus;
-import com.smartfms.backend.dto.AiPredictResponse.PollutionClass;
 
 /**
- * GET /vehicles/{plate} 응답 — docs/API.md 스펙과 동일.
- * 관제 대시보드 상세 화면(D2): AI가 무엇을 보고 어떤 조치를 했는지 검증하는 화면.
+ * GET /vehicles/{plate} 응답 — docs/API.md 스펙 기준.
+ * 관제 대시보드 상세 화면(D2): AI 감지 결과 및 실행된 조치를 검증하는 화면.
  */
 public record VehicleDetailResponse(
         String plate,
@@ -20,9 +19,10 @@ public record VehicleDetailResponse(
 ) {
     /** 가장 최근 검수 1건 */
     public record LatestInspection(
-            BigDecimal roiPollutionRatio,
-            List<PollutionClass> classes,
-            String imageUrl,                // → "image_url" (presigned URL, S3 미사용 시 null)
+            BigDecimal spillRatio,          // spill 오염 면적 비율
+            int trashCount,                 // 쓰레기 감지 개수
+            boolean occupyDetected,         // 소지품/유실물 감지 여부
+            String imageUrl,                // presigned URL (S3 미사용 시 null)
             List<String> actions,
             LocalDateTime checkedAt         // → "checked_at"
     ) {

@@ -3,7 +3,6 @@ package com.smartfms.backend.service;
 import com.smartfms.backend.domain.Grade;
 import com.smartfms.backend.domain.Inspection;
 import com.smartfms.backend.domain.Vehicle;
-import com.smartfms.backend.dto.AiPredictResponse.PollutionClass;
 import com.smartfms.backend.dto.VehicleDetailResponse;
 import com.smartfms.backend.dto.VehicleDetailResponse.LatestInspection;
 import com.smartfms.backend.dto.VehicleListResponse;
@@ -15,7 +14,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -54,23 +52,12 @@ public class VehicleService {
 
     private LatestInspection toLatestInspection(Inspection inspection) {
         return new LatestInspection(
-                inspection.getRoiPollutionRatio(),
-                toClasses(inspection),
+                inspection.getSpillRatio(),
+                inspection.getTrashCount(),
+                inspection.getOccupyDetected(),
                 imageStorage.presignedUrl(inspection.getImageKey()),
                 toActions(inspection),
                 inspection.getCreatedAt());
-    }
-
-    /** 저장된 종류별 비율을 AI 응답과 같은 형태로 복원 (감지된 것만) */
-    private List<PollutionClass> toClasses(Inspection inspection) {
-        List<PollutionClass> classes = new ArrayList<>();
-        if (isPositive(inspection.getTrashRatio())) {
-            classes.add(new PollutionClass("trash", inspection.getTrashRatio()));
-        }
-        if (isPositive(inspection.getOccupyRatio())) {
-            classes.add(new PollutionClass("occupy", inspection.getOccupyRatio()));
-        }
-        return classes;
     }
 
     /**
@@ -91,13 +78,9 @@ public class VehicleService {
         if (inspection.getGrade() != Grade.NORMAL) {
             actions.add("notified");
         }
-        if (isPositive(inspection.getOccupyRatio())) {
-            actions.add("belongings_notified");
+        if (Boolean.TRUE.equals(inspection.getUserAlert()) || Boolean.TRUE.equals(inspection.getOccupyDetected())) {
+            actions.add("user_alerted");
         }
         return actions;
-    }
-
-    private boolean isPositive(BigDecimal value) {
-        return value != null && value.compareTo(BigDecimal.ZERO) > 0;
     }
 }

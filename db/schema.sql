@@ -1,7 +1,7 @@
 -- =============================================================
--- Smart FMS — PostgreSQL 스키마
--- 기준 문서: docs/ERD.md (main 브랜치)
--- enum 값은 docs/API.md 3번 표와 철자·대소문자 동일 (CHECK 제약으로 강제)
+-- Smart FMS — PostgreSQL 스키마 (최종 반영본)
+-- 기준 문서: docs/ERD.md & docs/API.md
+-- enum 값은 docs/API.md 표와 철자·대소문자 동일 (CHECK 제약으로 강제)
 -- =============================================================
 
 -- 재실행 대비: 역순 DROP (FK 의존 순서 주의)
@@ -30,7 +30,7 @@ CREATE TABLE vehicles (
     id          BIGSERIAL PRIMARY KEY,
     plate       VARCHAR(20)  NOT NULL UNIQUE,          -- 예: 12가3456
     model       VARCHAR(50),
-    zone        VARCHAR(50),                           -- 예: 강남 A존
+    zone        VARCHAR(50),                            -- 예: 강남 A존
     status      VARCHAR(20)  NOT NULL DEFAULT 'AVAILABLE'
                 CHECK (status IN ('AVAILABLE', 'INSPECTING', 'CARWASH_NEEDED')),
     updated_at  TIMESTAMP    NOT NULL DEFAULT now()
@@ -40,16 +40,27 @@ CREATE TABLE vehicles (
 -- 3. inspections — 반납 검수 (핵심 테이블, 반납 1건 = 1행)
 -- -------------------------------------------------------------
 CREATE TABLE inspections (
-    id                    BIGSERIAL PRIMARY KEY,
-    vehicle_id            BIGINT       NOT NULL REFERENCES vehicles(id),
-    user_id               BIGINT       REFERENCES users(id),   -- 반납한 직전 이용자
-    roi_pollution_ratio   NUMERIC(4,3) NOT NULL CHECK (roi_pollution_ratio BETWEEN 0 AND 1),
-    trash_ratio           NUMERIC(4,3) NOT NULL DEFAULT 0 CHECK (trash_ratio BETWEEN 0 AND 1),
-    occupy_ratio          NUMERIC(4,3) NOT NULL DEFAULT 0 CHECK (occupy_ratio BETWEEN 0 AND 1),
-    grade                 VARCHAR(10)  NOT NULL
-                          CHECK (grade IN ('NORMAL', 'WARN', 'BLOCK')),
-    image_key             VARCHAR(255),                -- S3 경로 문자열만 저장 (BLOB 금지)
-    created_at            TIMESTAMP    NOT NULL DEFAULT now()
+    id                  BIGSERIAL PRIMARY KEY,
+    vehicle_id          BIGINT       NOT NULL REFERENCES vehicles(id),
+    user_id             BIGINT       REFERENCES users(id),   -- 반납한 직전 이용자
+    
+    -- Segmentation (면적 비율)
+    spill_ratio         NUMERIC(4,3) NOT NULL DEFAULT 0.000 CHECK (spill_ratio BETWEEN 0 AND 1), -- 복원된 spill_ratio (오염 면적)
+    roi_pollution_ratio NUMERIC(4,3) NOT NULL DEFAULT 0.000 CHECK (roi_pollution_ratio BETWEEN 0 AND 1), -- spill_ratio 동일값/호환용
+    occupy_ratio        NUMERIC(4,3) NOT NULL DEFAULT 0.000 CHECK (occupy_ratio BETWEEN 0 AND 1),
+    
+    -- Detection (쓰레기 개수 및 소지품 감지)
+    trash_count         INT          NOT NULL DEFAULT 0,     -- 쓰레기 감지 개수
+    trash_large         BOOLEAN      NOT NULL DEFAULT FALSE, -- 대형 쓰레기 여부 (ROI 1% 이상)
+    occupy_detected     BOOLEAN      NOT NULL DEFAULT FALSE, -- 소지품/유실물 감지 여부
+    
+    -- 판정 결과 및 알림
+    grade               VARCHAR(10)  NOT NULL
+                        CHECK (grade IN ('NORMAL', 'WARN', 'BLOCK')),
+    user_alert          BOOLEAN      NOT NULL DEFAULT FALSE, -- 유실물 안내 발송 여부
+    
+    image_key           VARCHAR(255),                        -- S3 경로 문자열만 저장 (BLOB 금지)
+    created_at          TIMESTAMP    NOT NULL DEFAULT now()
 );
 
 -- 차량 상세(D2)에서 "최근 검수" 조회용
@@ -95,7 +106,7 @@ CREATE TABLE penalties (
     user_id        BIGINT       NOT NULL REFERENCES users(id),
     inspection_id  BIGINT       NOT NULL REFERENCES inspections(id),
     points         INT          NOT NULL,
-    reason         VARCHAR(100),                       -- 예: 오염도 20%
+    reason         VARCHAR(100),                       -- 예: 오염도(spill) 8%, 쓰레기 3개
     created_at     TIMESTAMP    NOT NULL DEFAULT now()
 );
 
