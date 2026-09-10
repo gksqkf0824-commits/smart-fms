@@ -77,9 +77,8 @@ public class InspectionService {
         // 2. AI 분석 요청 (2개 모델 응답)
         AiPredictResponse ai = aiClient.predict(image);
         
-        // spill_ratio 복원 및 AI 반환값 파싱
+        // AI 반환값 파싱 (roi_pollution_ratio = 오염(spill) 면적 비율)
         BigDecimal spillRatio = ai.roiPollutionRatio() != null ? ai.roiPollutionRatio() : BigDecimal.ZERO;
-        BigDecimal occupyRatio = ai.occupyRatio() != null ? ai.occupyRatio() : BigDecimal.ZERO;
         int trashCount = ai.trashCount() != null ? ai.trashCount() : 0;
         boolean trashLarge = Boolean.TRUE.equals(ai.trashLarge());
         boolean occupyDetected = Boolean.TRUE.equals(ai.occupyDetected());
@@ -97,13 +96,11 @@ public class InspectionService {
             inUse.markReturned();
         }
 
-        // 5. 검수 기록 저장 (spillRatio 및 2모델 감지 결과 포함)
+        // 5. 검수 기록 저장 (2모델 감지 결과)
         Inspection inspection = inspectionRepository.save(Inspection.builder()
                 .vehicle(vehicle)
                 .user(previousUser)
-                .spillRatio(spillRatio)
-                .roiPollutionRatio(spillRatio) // 호환용 동일값 입력
-                .occupyRatio(occupyRatio)
+                .roiPollutionRatio(spillRatio)
                 .trashCount(trashCount)
                 .trashLarge(trashLarge)
                 .occupyDetected(occupyDetected)

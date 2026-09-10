@@ -8,7 +8,6 @@ import java.math.BigDecimal;
  */
 public record AiPredictResponse(
         BigDecimal roiPollutionRatio,   // spill_ratio 오염도 (0.000~1.000)
-        BigDecimal occupyRatio,         // 소지품 점유 비율 (0.000~1.000)
         Integer trashCount,             // 감지된 쓰레기 개수
         Boolean trashLarge,            // 대형 쓰레기 여부 (ROI 1% 이상)
         Boolean occupyDetected          // 소지품/유실물 감지 여부

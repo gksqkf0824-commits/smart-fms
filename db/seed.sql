@@ -15,9 +15,9 @@ INSERT INTO vehicles (plate, model, zone, status) VALUES
     ('34나5678', '레이',      '강남 B존', 'AVAILABLE'),
     ('56다7890', '아이오닉 5', '강남 A존', 'AVAILABLE');
 
--- 반납 검수: 12가3456이 쓰레기 20%로 BLOCK 판정 (소지품 없음)
-INSERT INTO inspections (vehicle_id, user_id, roi_pollution_ratio, trash_ratio, occupy_ratio, grade, image_key)
-VALUES (1, 1, 0.200, 0.200, 0.000, 'BLOCK', 'inspections/2026/12가3456_0941.jpg');
+-- 반납 검수: 12가3456 — 쓰레기 3개(Track 1 BLOCK) + 오염 8%(Track 2 BLOCK) → BLOCK, 소지품 감지로 유실물 알림
+INSERT INTO inspections (vehicle_id, user_id, roi_pollution_ratio, trash_count, trash_large, occupy_detected, grade, user_alert, image_key)
+VALUES (1, 1, 0.080, 3, FALSE, TRUE, 'BLOCK', TRUE, 'inspections/2026/12가3456_0941.jpg');
 
 -- 배차 이력: 홍길동의 배차가 차단(BLOCKED)되고 34나5678로 Swap
 INSERT INTO dispatches (vehicle_id, user_id, status, swapped_to) VALUES
@@ -31,4 +31,4 @@ VALUES (1, 1, '강남 세차연합', 'REQUESTED');
 
 -- 패널티: 직전 이용자 홍길동에게 부과
 INSERT INTO penalties (user_id, inspection_id, points, reason)
-VALUES (1, 1, 5, '오염도 20% (WARN 초과)');
+VALUES (1, 1, 5, '오염도 8%, 쓰레기 3개');

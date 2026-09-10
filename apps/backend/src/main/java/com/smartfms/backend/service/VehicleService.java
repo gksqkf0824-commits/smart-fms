@@ -52,9 +52,12 @@ public class VehicleService {
 
     private LatestInspection toLatestInspection(Inspection inspection) {
         return new LatestInspection(
-                inspection.getSpillRatio(),
+                inspection.getRoiPollutionRatio(),
                 inspection.getTrashCount(),
+                inspection.getTrashLarge(),
                 inspection.getOccupyDetected(),
+                inspection.getGrade(),
+                inspection.getUserAlert(),
                 imageStorage.presignedUrl(inspection.getImageKey()),
                 toActions(inspection),
                 inspection.getCreatedAt());

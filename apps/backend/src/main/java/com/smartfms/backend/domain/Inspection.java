@@ -44,20 +44,10 @@ public class Inspection {
     @JoinColumn(name = "user_id")
     private User user;
 
-    /** spill 오염 면적 비율 (0.000~1.000) - 복원 */
-    @Column(name = "spill_ratio", nullable = false, precision = 4, scale = 3)
-    @Builder.Default
-    private BigDecimal spillRatio = BigDecimal.ZERO;
-
-    /** 합산/호환용 오염도 (0.000~1.000) */
+    /** 오염(spill) 면적 비율 (0.000~1.000) — Segmentation 결과 */
     @Column(name = "roi_pollution_ratio", nullable = false, precision = 4, scale = 3)
     @Builder.Default
     private BigDecimal roiPollutionRatio = BigDecimal.ZERO;
-
-    /** 두고 간 소지품 면적 비율 */
-    @Column(name = "occupy_ratio", nullable = false, precision = 4, scale = 3)
-    @Builder.Default
-    private BigDecimal occupyRatio = BigDecimal.ZERO;
 
     /** 쓰레기 감지 개수 (Detection) */
     @Column(name = "trash_count", nullable = false)

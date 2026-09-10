@@ -45,9 +45,7 @@ CREATE TABLE inspections (
     user_id             BIGINT       REFERENCES users(id),   -- 반납한 직전 이용자
     
     -- Segmentation (면적 비율)
-    spill_ratio         NUMERIC(4,3) NOT NULL DEFAULT 0.000 CHECK (spill_ratio BETWEEN 0 AND 1), -- 복원된 spill_ratio (오염 면적)
-    roi_pollution_ratio NUMERIC(4,3) NOT NULL DEFAULT 0.000 CHECK (roi_pollution_ratio BETWEEN 0 AND 1), -- spill_ratio 동일값/호환용
-    occupy_ratio        NUMERIC(4,3) NOT NULL DEFAULT 0.000 CHECK (occupy_ratio BETWEEN 0 AND 1),
+    roi_pollution_ratio NUMERIC(4,3) NOT NULL DEFAULT 0.000 CHECK (roi_pollution_ratio BETWEEN 0 AND 1), -- 오염(spill) 면적 비율 (Segmentation)
     
     -- Detection (쓰레기 개수 및 소지품 감지)
     trash_count         INT          NOT NULL DEFAULT 0,     -- 쓰레기 감지 개수

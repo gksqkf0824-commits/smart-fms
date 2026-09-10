@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import com.smartfms.backend.domain.Grade;
 import com.smartfms.backend.domain.VehicleStatus;
 
 /**
@@ -19,9 +20,12 @@ public record VehicleDetailResponse(
 ) {
     /** 가장 최근 검수 1건 */
     public record LatestInspection(
-            BigDecimal spillRatio,          // spill 오염 면적 비율
+            BigDecimal roiPollutionRatio,   // 오염(spill) 면적 비율
             int trashCount,                 // 쓰레기 감지 개수
+            boolean trashLarge,             // 대형 쓰레기 여부 (프론트 상세 화면에서 사용)
             boolean occupyDetected,         // 소지품/유실물 감지 여부
+            Grade grade,                    // 최종 등급
+            boolean userAlert,              // 유실물 알림 발송 여부
             String imageUrl,                // presigned URL (S3 미사용 시 null)
             List<String> actions,
             LocalDateTime checkedAt         // → "checked_at"
