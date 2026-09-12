@@ -8,9 +8,23 @@ dependencies = [
     "pillow>=11.0.0",
     "pydantic-settings>=2.15.0",
     "python-multipart>=0.0.32",
+    "torch>=2.0",
+    "torchvision>=0.15",
     "ultralytics>=8.3.0",
     "uvicorn[standard]>=0.52.3",
 ]
+
+# torch는 ultralytics가 끌고 오지만, 기본 PyPI의 linux 휠은 CUDA 런타임까지 함께
+# 받아와 이미지가 수 GB로 불어난다. 배포 대상 EC2에 GPU가 없으므로 linux에서는
+# CPU 전용 인덱스를 쓰도록 명시적으로 고정한다. (macOS 휠은 원래 CPU 전용)
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]
+torchvision = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]
 
 [dependency-groups]
 dev = [
