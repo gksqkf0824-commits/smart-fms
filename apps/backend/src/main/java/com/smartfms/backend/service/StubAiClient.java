@@ -2,12 +2,10 @@ package com.smartfms.backend.service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.List;
 
 import org.springframework.stereotype.Component;
 
 import com.smartfms.backend.dto.AiPredictResponse;
-import com.smartfms.backend.dto.AiPredictResponse.PollutionClass;
 
 /**
  * AI 서버가 아직 없는 동안 쓰는 임시 구현 (4주차 AI↔BE 연동 시 교체).
@@ -17,22 +15,34 @@ import com.smartfms.backend.dto.AiPredictResponse.PollutionClass;
 @Component
 public class StubAiClient implements AiClient {
 
+
+    /**
+     * 테스트 방법 — 파일 크기(바이트 수)로 결과를 조절할 수 있다.
+     *   - spill 오염도(roiPollutionRatio) = (바이트 수 % 10) / 100  (예: 5바이트 -> 5%)
+     *   - 쓰레기 개수(trashCount) = (바이트 수 % 5)  (예: 3개 감지)
+     *   - 대형 쓰레기(trashLarge) = 쓰레기가 3개 이상일 때 true
+     *   - 소지품 감지(occupyDetected) = 바이트 수가 홀수일 때 true
+     */
     @Override
     public AiPredictResponse predict(byte[] image) {
-        // 이미지 크기를 씨앗으로 0.00~0.50 범위의 오염도를 생성 (임시)
-        int seed = (image == null ? 0 : image.length) % 51;
-        BigDecimal total = BigDecimal.valueOf(seed).divide(BigDecimal.valueOf(100), 3, RoundingMode.HALF_UP);
+        int length = image == null ? 0 : image.length;
 
-        // 오염이 적을 땐 고형 쓰레기만, 많을 땐 액체·얼룩이 섞인 것으로 흉내
-        List<PollutionClass> classes;
-        if (total.compareTo(new BigDecimal("0.100")) < 0) {
-            classes = List.of(new PollutionClass("trash", total));
-        } else {
-            BigDecimal trash = total.multiply(BigDecimal.valueOf(0.6)).setScale(3, RoundingMode.HALF_UP);
-            BigDecimal spill = total.subtract(trash).setScale(3, RoundingMode.HALF_UP);
-            classes = List.of(new PollutionClass("trash", trash), new PollutionClass("spill", spill));
-        }
+        // spill 오염도 비율 (0.000 ~ 0.090)
+        BigDecimal spillRatio = BigDecimal.valueOf(length % 10)
+                .divide(BigDecimal.valueOf(100), 3, RoundingMode.HALF_UP);
 
-        return new AiPredictResponse(total, classes, new BigDecimal("0.900"), new BigDecimal("0.850"));
+        // 쓰레기 개수 및 대형 여부
+        int trashCount = length % 5;
+        boolean trashLarge = trashCount >= 3;
+
+        // 소지품 감지 여부 및 면적
+        boolean occupyDetected = (length % 2 == 1);
+
+        return new AiPredictResponse(
+                spillRatio,       // roiPollutionRatio (spill_ratio)
+                trashCount,       // trashCount
+                trashLarge,       // trashLarge
+                occupyDetected    // occupyDetected
+        );
     }
 }

@@ -2,6 +2,7 @@ package com.smartfms.backend.service;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.UUID;
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
@@ -25,10 +26,14 @@ public class LocalImageStorage implements ImageStorage {
         return null;
     }
 
-    /** S3 저장 경로 규칙 — 예: inspections/2026/12가3456_0941.jpg */
+    /**
+     * S3 저장 경로 규칙 — 예: inspections/2026/12가3456_094103_a1b2c3d4.jpg
+     * 같은 차량이 같은 초 안에 반납돼도 키가 겹치지 않도록 UUID 접미사를 붙인다.
+     */
     static String buildKey(String plate) {
         LocalDateTime now = LocalDateTime.now();
-        return "inspections/%d/%s_%s.jpg".formatted(
-                now.getYear(), plate, now.format(DateTimeFormatter.ofPattern("HHmm")));
+        String uniqueSuffix = UUID.randomUUID().toString().substring(0, 8);
+        return "inspections/%d/%s_%s_%s.jpg".formatted(
+                now.getYear(), plate, now.format(DateTimeFormatter.ofPattern("HHmmss")), uniqueSuffix);
     }
 }
