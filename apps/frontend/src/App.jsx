@@ -9,6 +9,8 @@ import Penalty from './pages/Penalty'
 import AlertPage from './pages/AlertPage'
 import Login from './pages/Login'
 import CustomerReturn from './pages/CustomerReturn'
+import Profile from './pages/Profile'
+
 
 function Layout({ children }) {
   return (
@@ -35,6 +37,7 @@ export default function App() {
         <Route path="/penalty" element={<Layout><Penalty /></Layout>} />
         <Route path="/alert" element={<Layout><AlertPage /></Layout>} />
         <Route path="*" element={<Navigate to="/" />} />
+        <Route path="/profile" element={<Layout><Profile /></Layout>} />
       </Routes>
     </BrowserRouter>
   )

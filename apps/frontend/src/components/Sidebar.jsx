@@ -1,4 +1,5 @@
-import { Link, useLocation } from 'react-router-dom'
+import { useState } from 'react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 
 const menus = [
   { section: 'MAIN', items: [
@@ -15,6 +16,13 @@ const menus = [
 
 export default function Sidebar() {
   const location = useLocation()
+  const navigate = useNavigate()
+  const [menuOpen, setMenuOpen] = useState(false)
+
+  const handleLogout = () => {
+    setMenuOpen(false)
+    navigate('/login')
+  }
 
   return (
     <div style={{
@@ -61,13 +69,52 @@ export default function Sidebar() {
         ))}
       </div>
 
-      <div style={{ padding: '16px 20px', borderTop: '1px solid #2d3f6e', display: 'flex', alignItems: 'center', gap: '10px' }}>
-        <div style={{ width: '32px', height: '32px', background: '#4f8ef7', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: '700' }}>
-          관
-        </div>
-        <div>
-          <div style={{ fontSize: '12px', fontWeight: '700', color: '#fff' }}>관리자</div>
-          <div style={{ fontSize: '10px', color: '#8fa8d0' }}>Fleet Manager</div>
+      {/* 관리자 영역 */}
+      <div style={{ position: 'relative' }}>
+
+        {/* 드롭업 메뉴 */}
+        {menuOpen && (
+          <div style={{
+            position: 'absolute', bottom: '100%', left: '12px', right: '12px',
+            background: '#243660', borderRadius: '10px', overflow: 'hidden',
+            boxShadow: '0 -4px 16px rgba(0,0,0,0.3)', marginBottom: '6px',
+          }}>
+            <div style={{ padding: '12px 16px', borderBottom: '1px solid #2d3f6e' }}>
+              <div style={{ fontSize: '12px', fontWeight: '700', color: '#fff' }}>관리자</div>
+              <div style={{ fontSize: '10px', color: '#8fa8d0', marginTop: '2px' }}>admin@evida.kr</div>
+            </div>
+            <button
+              onClick={() => { setMenuOpen(false); navigate('/profile') }}              style={{ width: '100%', padding: '11px 16px', background: 'transparent', border: 'none', color: '#8fa8d0', fontSize: '13px', textAlign: 'left', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
+            >
+              프로필 설정
+            </button>
+            <button
+              onClick={handleLogout}
+              style={{ width: '100%', padding: '11px 16px', background: 'transparent', border: 'none', color: '#fff', fontSize: '13px', textAlign: 'left', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', borderTop: '1px solid #2d3f6e' }}
+            >
+              로그아웃
+            </button>
+          </div>
+        )}
+
+        {/* 관리자 버튼 */}
+        <div
+          onClick={() => setMenuOpen(!menuOpen)}
+          style={{
+            padding: '16px 20px', borderTop: '1px solid #2d3f6e',
+            display: 'flex', alignItems: 'center', gap: '10px',
+            cursor: 'pointer', background: menuOpen ? '#243660' : 'transparent',
+            transition: 'background 0.15s',
+          }}
+        >
+          <div style={{ width: '32px', height: '32px', background: '#4f8ef7', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: '700', flexShrink: 0 }}>
+            관
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: '12px', fontWeight: '700', color: '#fff' }}>관리자</div>
+            <div style={{ fontSize: '10px', color: '#8fa8d0' }}>Fleet Manager</div>
+          </div>
+          <div style={{ fontSize: '10px', color: '#8fa8d0' }}>{menuOpen ? '▼' : '▲'}</div>
         </div>
       </div>
     </div>

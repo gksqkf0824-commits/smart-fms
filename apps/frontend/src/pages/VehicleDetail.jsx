@@ -13,14 +13,12 @@ const gradeConfig = {
   BLOCK:  { label: '심각', color: '#991b1b', light: '#fef2f2' },
 }
 
-const classLabel = { trash: '고형 쓰레기', occupy: '두고 간 소지품' }
-
 const actionLabel = {
-  dispatch_blocked:    '배차 차단',
-  carwash_requested:   '세차 접수',
-  penalty_reserved:    '패널티 예약',
-  notified:            '알림 전송',
-  belongings_notified: '소지품이 발견되어 안내드렸습니다',
+  dispatch_blocked:  '배차 차단',
+  carwash_requested: '세차 접수',
+  penalty_reserved:  '패널티 예약',
+  notified:          'Discord 알림 전송',
+  user_alerted:      '소지품이 발견되어 안내드렸습니다',
 }
 
 const mockData = {
@@ -28,23 +26,26 @@ const mockData = {
   model: '아이오닉5',
   zone: '강남 A존',
   status: 'CARWASH_NEEDED',
-  last_checked: '2026-07-05T14:32:00',
   latest_inspection: {
     roi_pollution_ratio: 0.235,
-    classes: [
-      { type: 'trash', area_ratio: 0.14 },
-      { type: 'occupy', area_ratio: 0.09 },
-    ],
+    trash_count: 3,
+    trash_large: true,
+    occupy_detected: true,
     grade: 'BLOCK',
-    actions: ['dispatch_blocked', 'carwash_requested', 'penalty_reserved', 'notified', 'belongings_notified'],
-    image_key: 'inspections/2026/12가3456_2037.jpg',
+    user_alert: true,
+    actions: ['dispatch_blocked', 'carwash_requested', 'penalty_reserved', 'notified', 'user_alerted'],
+    image_url: null,
+    checked_at: '2026-07-05T14:32:00',
   }
 }
 
 export default function VehicleDetail() {
   const navigate = useNavigate()
   const { id } = useParams()
-  const data = { ...mockData, plate: id ?? mockData.plate }
+  const [data] = useState({ ...mockData, plate: id ?? mockData.plate })
+  const [imageUrl, setImageUrl] = useState(null)
+  const [imageLoading, setImageLoading] = useState(true)
+
   const ins = data.latest_inspection
   const grade = ins ? gradeConfig[ins.grade] : null
   const pollPct = ins ? (ins.roi_pollution_ratio * 100).toFixed(1) : null
@@ -56,7 +57,8 @@ export default function VehicleDetail() {
     setImageLoading(true)
     fetch(`${API_BASE}/vehicles/${data.plate}`)
       .then(res => res.json())
-      .then(json => setImageUrl(json.image_url ?? null))
+      .then(json => setImageUrl(json.latest_inspection?.image_url ?? json.image_url ?? null))
+
       .catch(() => setImageUrl(null))
       .finally(() => setImageLoading(false))
   }, [data.plate])
@@ -64,26 +66,23 @@ export default function VehicleDetail() {
   return (
     <div style={{ padding: '32px 40px', background: '#f9fafb', minHeight: '100vh' }}>
 
-      {/* 브레드크럼 */}
       <div style={{ fontSize: '12px', color: '#9ca3af', marginBottom: '20px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }} onClick={() => navigate('/vehicles')}>
         <span>차량 목록</span>
         <span>/</span>
         <span style={{ color: '#374151' }}>{data.plate}</span>
       </div>
 
-      {/* 헤더 */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '32px' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '6px' }}>
             <h1 style={{ fontSize: '24px', fontWeight: '700', color: '#111827', margin: 0 }}>{data.plate}</h1>
-            <span style={{
-              fontSize: '11px', fontWeight: '600', padding: '3px 10px', borderRadius: '4px',
-              color: statusColor[data.status], background: statusBg[data.status],
-              border: `1px solid ${statusColor[data.status]}30`
-            }}>{statusLabel[data.status]}</span>
+            <span style={{ fontSize: '11px', fontWeight: '600', padding: '3px 10px', borderRadius: '4px', color: statusColor[data.status], background: statusBg[data.status], border: `1px solid ${statusColor[data.status]}30` }}>
+              {statusLabel[data.status]}
+            </span>
           </div>
           <div style={{ fontSize: '13px', color: '#6b7280' }}>
-            {data.model} &nbsp;·&nbsp; {data.zone} &nbsp;·&nbsp; 반납 {data.last_checked ? new Date(data.last_checked).toLocaleString('ko-KR', { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-'}
+            {data.model} &nbsp;·&nbsp; {data.zone} &nbsp;·&nbsp; 반납{' '}
+            {ins?.checked_at ? new Date(ins.checked_at).toLocaleString('ko-KR', { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-'}
           </div>
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
@@ -97,6 +96,7 @@ export default function VehicleDetail() {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: '24px' }}>
 
           {/* 좌측 — 이미지 */}
+
           <div style={{ background: '#fff', borderRadius: '10px', border: '1px solid #e5e7eb', overflow: 'hidden', alignSelf: 'flex-start' }}>
             <div style={{ padding: '14px 18px', borderBottom: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '13px', fontWeight: '600', color: '#374151' }}>원본 사진</span>
@@ -113,7 +113,6 @@ export default function VehicleDetail() {
             </div>
           </div>
 
-          {/* 우측 — 분석 결과 */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
             <div style={{ background: '#fff', borderRadius: '10px', border: '1px solid #e5e7eb', padding: '20px' }}>
@@ -121,7 +120,7 @@ export default function VehicleDetail() {
               <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: '16px' }}>
                 <div>
                   <div style={{ fontSize: '40px', fontWeight: '700', color: grade.color, lineHeight: 1 }}>{pollPct}%</div>
-                  <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '4px' }}>합산 오염도</div>
+                  <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '4px' }}>오염 면적 비율</div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
                   <div style={{ fontSize: '18px', fontWeight: '700', color: grade.color }}>{grade.label}</div>
@@ -133,7 +132,7 @@ export default function VehicleDetail() {
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#d1d5db', marginTop: '4px' }}>
                 <span>0%</span>
-                <span>기준치 10% / 30%</span>
+                <span>기준치 2% / 5%</span>
                 <span>100%</span>
               </div>
             </div>
@@ -141,21 +140,26 @@ export default function VehicleDetail() {
             <div style={{ background: '#fff', borderRadius: '10px', border: '1px solid #e5e7eb', padding: '20px' }}>
               <div style={{ fontSize: '11px', fontWeight: '600', color: '#9ca3af', letterSpacing: '0.5px', marginBottom: '14px', textTransform: 'uppercase' }}>감지 항목</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {ins.classes.map((c, i) => (
-                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '10px', borderBottom: i < ins.classes.length - 1 ? '1px solid #f3f4f6' : 'none' }}>
-                    <div>
-                      <div style={{ fontSize: '13px', fontWeight: '500', color: '#374151' }}>
-                        {classLabel[c.type] ?? c.type}
-                      </div>
+                {ins.trash_count > 0 && (
+                  <div style={{ paddingBottom: '10px', borderBottom: ins.occupy_detected ? '1px solid #f3f4f6' : 'none' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ fontSize: '13px', fontWeight: '500', color: '#374151' }}>고형 쓰레기</div>
+                      <span style={{ fontSize: '13px', fontWeight: '600', color: '#374151' }}>{ins.trash_count}개</span>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <div style={{ width: '80px', background: '#f3f4f6', borderRadius: '100px', height: '4px', overflow: 'hidden' }}>
-                        <div style={{ width: `${c.area_ratio * 100 / 0.5 * 100}%`, maxWidth: '100%', height: '100%', background: '#374151', borderRadius: '100px' }} />
-                      </div>
-                      <span style={{ fontSize: '13px', fontWeight: '600', color: '#374151', minWidth: '36px', textAlign: 'right' }}>{(c.area_ratio * 100).toFixed(1)}%</span>
-                    </div>
+                    {ins.trash_large && (
+                      <div style={{ fontSize: '11px', color: '#ef4444', marginTop: '4px' }}>대형 쓰레기 포함</div>
+                    )}
                   </div>
-                ))}
+                )}
+                {ins.occupy_detected && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ fontSize: '13px', fontWeight: '500', color: '#374151' }}>두고 간 소지품</div>
+                    <span style={{ fontSize: '13px', fontWeight: '600', color: '#374151' }}>감지됨</span>
+                  </div>
+                )}
+                {ins.trash_count === 0 && !ins.occupy_detected && (
+                  <div style={{ fontSize: '13px', color: '#9ca3af' }}>감지된 항목 없음</div>
+                )}
               </div>
             </div>
 
