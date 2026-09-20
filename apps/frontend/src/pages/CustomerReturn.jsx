@@ -1,5 +1,7 @@
 import { useState } from 'react'
 
+const API_BASE = 'http://localhost:8080'
+
 const gradeLabel = { BLOCK: '오염 심각', WARN: '경미한 오염', NORMAL: '정상' }
 const gradeColor = { BLOCK: '#dc2626', WARN: '#b45309', NORMAL: '#16a34a' }
 const gradeBg    = { BLOCK: '#fef2f2', WARN: '#fffbeb', NORMAL: '#f0fdf4' }
@@ -47,7 +49,7 @@ export default function CustomerReturn() {
     formData.append('plate', plate)
     formData.append('image', file)
     try {
-      const res = await fetch('/return', { method: 'POST', body: formData })
+      const res = await fetch(`${API_BASE}/return`, { method: 'POST', body: formData })
       if (res.status === 404) {
         const data = await res.json()
         setError(data.detail || '차량번호를 확인해주세요.')
