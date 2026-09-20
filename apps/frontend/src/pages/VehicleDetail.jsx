@@ -43,6 +43,8 @@ export default function VehicleDetail() {
   const navigate = useNavigate()
   const { id } = useParams()
   const [data] = useState({ ...mockData, plate: id ?? mockData.plate })
+  
+  // 이미지 관련 상태 (중복 선언 제거 완료)
   const [imageUrl, setImageUrl] = useState(null)
   const [imageLoading, setImageLoading] = useState(true)
 
@@ -50,15 +52,11 @@ export default function VehicleDetail() {
   const grade = ins ? gradeConfig[ins.grade] : null
   const pollPct = ins ? (ins.roi_pollution_ratio * 100).toFixed(1) : null
 
-  const [imageUrl, setImageUrl] = useState(null)
-  const [imageLoading, setImageLoading] = useState(true)
-
   useEffect(() => {
     setImageLoading(true)
     fetch(`${API_BASE}/vehicles/${data.plate}`)
       .then(res => res.json())
       .then(json => setImageUrl(json.latest_inspection?.image_url ?? json.image_url ?? null))
-
       .catch(() => setImageUrl(null))
       .finally(() => setImageLoading(false))
   }, [data.plate])
@@ -96,7 +94,6 @@ export default function VehicleDetail() {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: '24px' }}>
 
           {/* 좌측 — 이미지 */}
-
           <div style={{ background: '#fff', borderRadius: '10px', border: '1px solid #e5e7eb', overflow: 'hidden', alignSelf: 'flex-start' }}>
             <div style={{ padding: '14px 18px', borderBottom: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '13px', fontWeight: '600', color: '#374151' }}>원본 사진</span>
