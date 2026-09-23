@@ -33,6 +33,7 @@ export default function App() {
         <Route path="/vehicles" element={<Layout><VehicleList /></Layout>} />
         <Route path="/vehicles/:id" element={<Layout><VehicleDetail /></Layout>} />
         <Route path="/analysis" element={<Layout><AIAnalysis /></Layout>} />
+        <Route path="/analysis/:id" element={<Layout><AIAnalysis /></Layout>} />
         <Route path="/return" element={<Layout><ReturnAccept /></Layout>} />
         <Route path="/penalty" element={<Layout><Penalty /></Layout>} />
         <Route path="/alert" element={<Layout><AlertPage /></Layout>} />

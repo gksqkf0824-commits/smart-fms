@@ -1,4 +1,7 @@
+import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+
+const API_BASE = 'http://localhost:8080'
 
 const gradeLabel = { NORMAL: '정상', WARN: '경고', BLOCK: '심각' }
 
@@ -10,23 +13,57 @@ const actionLabel = {
   user_alerted:      '소지품이 발견되어 안내드렸습니다',
 }
 
-const mockResult = {
-  vehicle: '12가3456',
-  checked_at: '2026-07-05T14:32:00',
-  roi_pollution_ratio: 0.235,
-  trash_count: 3,
-  trash_large: true,
-  occupy_detected: true,
-  grade: 'BLOCK',
-  user_alert: true,
-  actions: ['dispatch_blocked', 'carwash_requested', 'penalty_reserved', 'notified', 'user_alerted'],
-  image_key: 'inspections/2026/12가3456_2037.jpg',
-}
-
 export default function AIAnalysis() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const data = { ...mockResult, vehicle: id ?? mockResult.vehicle }
+  const [inspected, setInspected] = useState([])   // 검수 이력이 있는 차량 (최근 검수 순)
+  const [detail, setDetail] = useState(null)
+  const [error, setError] = useState(null)
+
+  // 차량 목록 — 번호판 없이 들어오면 가장 최근에 검수된 차량을 보여준다
+  useEffect(() => {
+    fetch(`${API_BASE}/vehicles`)
+      .then(res => {
+        if (!res.ok) throw new Error(`서버 오류 (${res.status})`)
+        return res.json()
+      })
+      .then(list => setInspected(
+        list.filter(v => v.last_checked)
+          .sort((a, b) => new Date(b.last_checked) - new Date(a.last_checked))
+      ))
+      .catch(e => setError(e.message === 'Failed to fetch' ? '서버에 연결할 수 없습니다.' : e.message))
+  }, [])
+
+  const plate = id ?? inspected[0]?.plate
+
+  useEffect(() => {
+    if (!plate) return
+    setDetail(null)
+    setError(null)
+    fetch(`${API_BASE}/vehicles/${encodeURIComponent(plate)}`)
+      .then(res => {
+        if (res.status === 404) throw new Error('등록되지 않은 차량입니다.')
+        if (!res.ok) throw new Error(`서버 오류 (${res.status})`)
+        return res.json()
+      })
+      .then(setDetail)
+      .catch(e => setError(e.message === 'Failed to fetch' ? '서버에 연결할 수 없습니다.' : e.message))
+  }, [plate])
+
+  const ins = detail?.latest_inspection
+  if (error || !ins) {
+    const message = error
+      ?? (detail ? '아직 검수 이력이 없는 차량입니다.'
+        : plate ? '분석 결과를 불러오는 중…'
+        : inspected.length === 0 ? '검수 이력이 있는 차량이 없습니다.' : '분석 결과를 불러오는 중…')
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#0a0c14', color: error ? '#ef4444' : '#8892b0', fontSize: '13px' }}>
+        {message}
+      </div>
+    )
+  }
+
+  const data = { ...ins, vehicle: detail.plate }
   const pollPct = (data.roi_pollution_ratio * 100).toFixed(1)
   const pollColor = data.roi_pollution_ratio >= 0.05 ? '#ef4444' : data.roi_pollution_ratio >= 0.02 ? '#f59e0b' : '#22c55e'
   const font = "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif"
@@ -66,11 +103,19 @@ export default function AIAnalysis() {
 
         <div style={{ width: '180px', background: '#0d0f1a', borderRight: '1px solid #1e2235', padding: '14px 10px', display: 'flex', flexDirection: 'column', gap: '10px', flexShrink: 0 }}>
           <div style={{ fontSize: '10px', color: '#4f8ef7', fontWeight: '700', letterSpacing: '0.5px', paddingBottom: '6px', borderBottom: '1px solid #1e2235' }}>차량 정보</div>
-          <div style={{ background: '#111827', borderRadius: '6px', padding: '10px 12px', border: '1px solid #1e2235' }}>
-            <div style={{ fontSize: '13px', color: '#cdd6f4', fontWeight: '700' }}>{data.vehicle}</div>
-            <div style={{ fontSize: '10px', color: '#4a5568', marginTop: '4px' }}>
-              {new Date(data.checked_at).toLocaleString('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}
-            </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', overflowY: 'auto' }}>
+            {inspected.map(v => {
+              const selected = v.plate === data.vehicle
+              return (
+                <div key={v.plate} onClick={() => navigate(`/analysis/${v.plate}`)}
+                  style={{ background: selected ? '#1a2440' : '#111827', borderRadius: '6px', padding: '10px 12px', border: `1px solid ${selected ? '#4f8ef7' : '#1e2235'}`, cursor: 'pointer' }}>
+                  <div style={{ fontSize: '13px', color: '#cdd6f4', fontWeight: '700' }}>{v.plate}</div>
+                  <div style={{ fontSize: '10px', color: '#4a5568', marginTop: '4px' }}>
+                    {new Date(v.last_checked).toLocaleString('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                  </div>
+                </div>
+              )
+            })}
           </div>
           <button onClick={() => navigate('/vehicles')} style={{ marginTop: 'auto', width: '100%', padding: '8px', background: '#1a1f2e', border: '1px solid #1e2235', borderRadius: '5px', color: '#8892b0', fontSize: '11px', cursor: 'pointer' }}>
             차량 목록으로
@@ -82,7 +127,9 @@ export default function AIAnalysis() {
             <span style={{ fontSize: '11px', color: '#8892b0' }}>반납 시 촬영 사진 · {data.vehicle}</span>
           </div>
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0a0c14' }}>
-            <div style={{ fontSize: '13px', color: '#4a5568' }}>이미지 로드 중 · {data.image_key}</div>
+            {data.image_url
+              ? <img src={data.image_url} alt="차량 실내 사진" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+              : <div style={{ fontSize: '13px', color: '#4a5568' }}>사진 없음</div>}
           </div>
           <div style={{ background: '#0f1117', borderTop: '1px solid #1e2235', padding: '8px 12px', display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
             <button style={{ padding: '4px 12px', background: 'rgba(239,68,68,0.1)', border: '1px solid #ef4444', borderRadius: '4px', color: '#ef4444', fontSize: '11px', cursor: 'pointer', fontWeight: '600' }}>배차 중단</button>

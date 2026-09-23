@@ -21,45 +21,44 @@ const actionLabel = {
   user_alerted:      '소지품이 발견되어 안내드렸습니다',
 }
 
-const mockData = {
-  plate: '12가3456',
-  model: '아이오닉5',
-  zone: '강남 A존',
-  status: 'CARWASH_NEEDED',
-  latest_inspection: {
-    roi_pollution_ratio: 0.235,
-    trash_count: 3,
-    trash_large: true,
-    occupy_detected: true,
-    grade: 'BLOCK',
-    user_alert: true,
-    actions: ['dispatch_blocked', 'carwash_requested', 'penalty_reserved', 'notified', 'user_alerted'],
-    image_url: null,
-    checked_at: '2026-07-05T14:32:00',
-  }
-}
-
 export default function VehicleDetail() {
   const navigate = useNavigate()
   const { id } = useParams()
-  const [data] = useState({ ...mockData, plate: id ?? mockData.plate })
-  
-  // 이미지 관련 상태 (중복 선언 제거 완료)
-  const [imageUrl, setImageUrl] = useState(null)
-  const [imageLoading, setImageLoading] = useState(true)
+  const [data, setData] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+
+  useEffect(() => {
+    setLoading(true)
+    setError(null)
+    fetch(`${API_BASE}/vehicles/${encodeURIComponent(id)}`)
+      .then(res => {
+        if (res.status === 404) throw new Error('등록되지 않은 차량입니다.')
+        if (!res.ok) throw new Error(`서버 오류 (${res.status})`)
+        return res.json()
+      })
+      .then(setData)
+      .catch(e => setError(e.message === 'Failed to fetch' ? '서버에 연결할 수 없습니다.' : e.message))
+      .finally(() => setLoading(false))
+  }, [id])
+
+  if (loading || error || !data) {
+    return (
+      <div style={{ padding: '32px 40px', background: '#f9fafb', minHeight: '100vh' }}>
+        <div style={{ fontSize: '12px', color: '#9ca3af', marginBottom: '20px', cursor: 'pointer' }} onClick={() => navigate('/vehicles')}>
+          차량 목록 / <span style={{ color: '#374151' }}>{id}</span>
+        </div>
+        <div style={{ fontSize: '14px', color: error ? '#991b1b' : '#9ca3af' }}>
+          {error ?? '차량 정보를 불러오는 중…'}
+        </div>
+      </div>
+    )
+  }
 
   const ins = data.latest_inspection
   const grade = ins ? gradeConfig[ins.grade] : null
   const pollPct = ins ? (ins.roi_pollution_ratio * 100).toFixed(1) : null
-
-  useEffect(() => {
-    setImageLoading(true)
-    fetch(`${API_BASE}/vehicles/${data.plate}`)
-      .then(res => res.json())
-      .then(json => setImageUrl(json.latest_inspection?.image_url ?? json.image_url ?? null))
-      .catch(() => setImageUrl(null))
-      .finally(() => setImageLoading(false))
-  }, [data.plate])
+  const imageUrl = ins?.image_url ?? null
 
   return (
     <div style={{ padding: '32px 40px', background: '#f9fafb', minHeight: '100vh' }}>
@@ -90,6 +89,12 @@ export default function VehicleDetail() {
         </div>
       </div>
 
+      {!ins && (
+        <div style={{ background: '#fff', borderRadius: '10px', border: '1px solid #e5e7eb', padding: '40px', textAlign: 'center', fontSize: '13px', color: '#9ca3af' }}>
+          아직 검수 이력이 없는 차량입니다.
+        </div>
+      )}
+
       {ins && grade && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: '24px' }}>
 
@@ -100,9 +105,7 @@ export default function VehicleDetail() {
               <span style={{ fontSize: '11px', color: '#9ca3af' }}>반납 시 자동 촬영</span>
             </div>
             <div style={{ height: '440px', background: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              {imageLoading ? (
-                <div style={{ fontSize: '13px', color: '#9ca3af' }}>이미지 불러오는 중…</div>
-              ) : imageUrl ? (
+              {imageUrl ? (
                 <img src={imageUrl} alt="차량 실내 사진" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               ) : (
                 <div style={{ fontSize: '13px', color: '#9ca3af' }}>사진 없음</div>
