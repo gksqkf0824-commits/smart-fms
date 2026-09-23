@@ -42,6 +42,16 @@ app:
     enabled: ${APP_DISCORD_ENABLED:false}
     webhook-url: ${APP_DISCORD_WEBHOOK_URL:}
 
+  # AI 추론 서버 (apps/ai-server, docs/API.md 1번)
+  # enabled=false(기본): StubAiClient — AI 서버·모델 가중치 없는 팀원도 그대로 실행 가능
+  # enabled=true: 실제 POST {base-url}/predict 호출. 실패 시 반납은 503으로 거절됨
+  ai:
+    enabled: ${APP_AI_ENABLED:false}
+    base-url: ${APP_AI_BASE_URL:http://localhost:8000}
+    connect-timeout: ${APP_AI_CONNECT_TIMEOUT:2s}
+    # CPU 추론(모델 2개)이라 여유 있게
+    read-timeout: ${APP_AI_READ_TIMEOUT:30s}
+
   # 검수 사진 저장소
   # enabled=false(기본): 경로만 생성 — AWS 자격증명 없는 팀원도 그대로 실행 가능
   # enabled=true: 실제 S3 업로드 + presigned URL 발급 (.env에 자격증명 필요)

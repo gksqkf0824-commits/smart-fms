@@ -3,16 +3,19 @@ package com.smartfms.backend.service;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import com.smartfms.backend.dto.AiPredictResponse;
 
 /**
- * AI 서버가 아직 없는 동안 쓰는 임시 구현 (4주차 AI↔BE 연동 시 교체).
+ * AI 서버 없이 개발·시연할 때 쓰는 임시 구현 (app.ai.enabled=false, 기본값).
+ * 실제 AI 서버 호출은 HttpAiClient.
  * 이미지 바이트로부터 결정적인 값을 만들어 내므로, 같은 사진은 항상 같은 결과가 나온다
  * → 시연·테스트 재현성 확보.
  */
 @Component
+@ConditionalOnProperty(name = "app.ai.enabled", havingValue = "false", matchIfMissing = true)
 public class StubAiClient implements AiClient {
 
 

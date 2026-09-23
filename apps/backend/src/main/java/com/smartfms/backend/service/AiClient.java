@@ -4,7 +4,7 @@ import com.smartfms.backend.dto.AiPredictResponse;
 
 /**
  * AI 추론 서버(FastAPI) 호출 창구.
- * 4주차에 실제 HTTP 호출 구현체로 교체하면 되고, 나머지 코드는 손대지 않아도 된다.
+ * app.ai.enabled=true → HttpAiClient (실제 호출), false(기본) → StubAiClient.
  */
 public interface AiClient {
 
