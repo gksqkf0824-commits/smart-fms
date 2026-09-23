@@ -86,10 +86,11 @@
 ```
 smart-fms/
 ├── apps/
-│   ├── ai/        # FastAPI 추론 서버 (왕석빈, 최지우)
+│   ├── ai-server/ # FastAPI 추론 서버 (왕석빈, 최지우)
 │   ├── backend/   # Spring Boot 비즈니스 API (김주찬, 김민아)
-│   └── web/       # React 대시보드 + 시연 (신서현)
-├── infra/         # docker-compose, CI/CD, 배포 (김민아)
+│   └── frontend/  # React 대시보드 + 시연 (신서현)
+├── db/            # schema.sql, seed.sql (DB 최초 생성 시 자동 실행)
+├── infra/         # EC2 배포 스크립트 (김민아)
 ├── docs/          # API 명세, ERD, 합의사항
 └── docker-compose.yml
 ```
@@ -119,6 +120,7 @@ ai / backend / frontend / infra   ← 파트별 작업 브랜치
 ## 실행
 
 ```bash
-docker-compose up   # 전체 로컬 실행
-# 개별 실행은 각 apps/*/README.md 참고
+docker-compose up   # PostgreSQL + 백엔드 로컬 실행
+# AI 서버·프론트는 각 apps/*/README.md 참고
+# 백엔드가 실제 AI 서버를 호출하게 하려면 .env에 APP_AI_ENABLED=true (.env.example 참고)
 ```
