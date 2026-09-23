@@ -44,4 +44,9 @@ public class CarwashRequest {
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
+
+    /** 세차 완료 처리 (배차 재개 시) */
+    public void complete() {
+        this.status = CarwashStatus.DONE;
+    }
 }

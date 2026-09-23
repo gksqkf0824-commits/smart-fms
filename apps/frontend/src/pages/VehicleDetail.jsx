@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 
 const API_BASE = 'http://localhost:8080'
+// 관리자 API(배차 재개) 인증 — 백엔드 APP_ADMIN_TOKEN과 같은 값을 apps/frontend/.env에 설정
+const ADMIN_TOKEN = import.meta.env.VITE_ADMIN_TOKEN ?? ''
 
 const statusLabel = { AVAILABLE: '운행 가능', CARWASH_NEEDED: '세차 필요', INSPECTING: '검수 중' }
 const statusColor = { AVAILABLE: '#16a34a', CARWASH_NEEDED: '#92400e', INSPECTING: '#991b1b' }
@@ -27,6 +29,25 @@ export default function VehicleDetail() {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [resuming, setResuming] = useState(false)
+  const [resumeError, setResumeError] = useState(null)
+
+  const resumeDispatch = () => {
+    setResuming(true)
+    setResumeError(null)
+    fetch(`${API_BASE}/vehicles/${encodeURIComponent(data.plate)}/resume`, {
+      method: 'POST',
+      headers: { 'X-Admin-Token': ADMIN_TOKEN },
+    })
+      .then(res => {
+        if (res.status === 401) throw new Error('관리자 인증에 실패했습니다.')
+        if (!res.ok) return res.json().then(body => { throw new Error(body.detail ?? `서버 오류 (${res.status})`) })
+        return res.json()
+      })
+      .then(body => setData(prev => ({ ...prev, status: body.status })))
+      .catch(e => setResumeError(e.message === 'Failed to fetch' ? '서버에 연결할 수 없습니다.' : e.message))
+      .finally(() => setResuming(false))
+  }
 
   useEffect(() => {
     setLoading(true)
@@ -82,10 +103,18 @@ export default function VehicleDetail() {
             {ins?.checked_at ? new Date(ins.checked_at).toLocaleString('ko-KR', { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-'}
           </div>
         </div>
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <button style={{ padding: '8px 18px', background: '#fff', color: '#374151', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '13px', fontWeight: '500', cursor: 'pointer' }}>세차 호출</button>
-          <button style={{ padding: '8px 18px', background: '#fff', color: '#374151', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '13px', fontWeight: '500', cursor: 'pointer' }}>패널티 부과</button>
-          <button style={{ padding: '8px 18px', background: '#111827', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '13px', fontWeight: '500', cursor: 'pointer' }}>배차 중단 유지</button>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px' }}>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button style={{ padding: '8px 18px', background: '#fff', color: '#374151', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '13px', fontWeight: '500', cursor: 'pointer' }}>세차 호출</button>
+            <button style={{ padding: '8px 18px', background: '#fff', color: '#374151', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '13px', fontWeight: '500', cursor: 'pointer' }}>패널티 부과</button>
+            {data.status === 'CARWASH_NEEDED' && (
+              <button onClick={resumeDispatch} disabled={resuming}
+                style={{ padding: '8px 18px', background: '#111827', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '13px', fontWeight: '500', cursor: resuming ? 'default' : 'pointer', opacity: resuming ? 0.6 : 1 }}>
+                {resuming ? '재개 중…' : '세차 완료 · 배차 재개'}
+              </button>
+            )}
+          </div>
+          {resumeError && <div style={{ fontSize: '12px', color: '#991b1b' }}>{resumeError}</div>}
         </div>
       </div>
 

@@ -32,6 +32,11 @@ app:
     warn-threshold: ${APP_POLLUTION_WARN_THRESHOLD:0.02}
     block-threshold: ${APP_POLLUTION_BLOCK_THRESHOLD:0.05}
 
+  # 관리자 전용 API(배차 재개 등) 인증 토큰 — 요청 헤더 X-Admin-Token과 비교
+  # 비어 있으면 관리자 API는 모두 401 (기본값으로 열리지 않게). .env에 설정
+  admin:
+    token: ${APP_ADMIN_TOKEN:}
+
   carwash:
     partner: ${APP_CARWASH_PARTNER:강남 세차연합}
 

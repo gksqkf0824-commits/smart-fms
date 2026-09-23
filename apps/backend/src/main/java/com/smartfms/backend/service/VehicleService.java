@@ -1,8 +1,12 @@
 package com.smartfms.backend.service;
 
+import com.smartfms.backend.domain.CarwashRequest;
+import com.smartfms.backend.domain.CarwashStatus;
 import com.smartfms.backend.domain.Grade;
 import com.smartfms.backend.domain.Inspection;
 import com.smartfms.backend.domain.Vehicle;
+import com.smartfms.backend.domain.VehicleStatus;
+import com.smartfms.backend.dto.ResumeResponse;
 import com.smartfms.backend.dto.VehicleDetailResponse;
 import com.smartfms.backend.dto.VehicleDetailResponse.LatestInspection;
 import com.smartfms.backend.dto.VehicleListResponse;
@@ -48,6 +52,29 @@ public class VehicleService {
 
         return new VehicleDetailResponse(
                 vehicle.getPlate(), vehicle.getZone(), vehicle.getModel(), vehicle.getStatus(), latest);
+    }
+
+    /**
+     * 배차 재개 (관리자 수동) — 세차를 마친 차량을 다시 운행 가능 상태로 돌린다.
+     * 미완료 세차 요청은 함께 완료 처리. 이미 AVAILABLE이면 그대로 성공 응답 (재시도 안전).
+     * 차단·Swap된 예약은 되돌리지 않는다 — 이미 다른 차량으로 처리된 배차이기 때문.
+     */
+    @Transactional
+    public ResumeResponse resume(String plate) {
+        Vehicle vehicle = vehicleRepository.findByPlate(plate)
+                .orElseThrow(() -> new VehicleNotFoundException(plate));
+
+        if (vehicle.getStatus() == VehicleStatus.INSPECTING) {
+            throw new InvalidVehicleStateException("검수 중인 차량은 배차를 재개할 수 없습니다: " + plate);
+        }
+
+        if (vehicle.getStatus() == VehicleStatus.CARWASH_NEEDED) {
+            carwashRequestRepository.findByVehicleIdAndStatus(vehicle.getId(), CarwashStatus.REQUESTED)
+                    .forEach(CarwashRequest::complete);
+            vehicle.changeStatus(VehicleStatus.AVAILABLE);
+        }
+
+        return new ResumeResponse(vehicle.getPlate(), vehicle.getStatus());
     }
 
     private LatestInspection toLatestInspection(Inspection inspection) {
