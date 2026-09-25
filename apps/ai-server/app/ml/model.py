@@ -46,6 +46,22 @@ def load_model() -> None:
     _detection_model = YOLO(str(settings.resolve(settings.detection_model_path)))
     _segmentation_model = YOLO(str(settings.resolve(settings.segmentation_model_path)))
 
+    _warmup()
+
+
+def _warmup() -> None:
+    """빈 이미지로 한 번씩 추론해 둔다.
+
+    첫 predict는 레이어 융합·런타임 초기화 때문에 수십 초가 걸린다 (로컬 CPU 실측 약 24초).
+    이 비용을 첫 반납 요청이 떠안으면 백엔드 read-timeout(30초)에 걸려 반납이 실패할 수 있으므로
+    서버 시작 단계에서 미리 치른다.
+    """
+    from PIL import Image
+
+    blank = Image.new("RGB", (640, 640))
+    _detection_model.predict(blank, verbose=False)
+    _segmentation_model.predict(blank, verbose=False)
+
 
 def run_inference(image_bytes: bytes) -> dict | None:
     """이미지 바이트를 받아 /predict 응답 dict를 반환한다.
