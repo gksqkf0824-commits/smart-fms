@@ -8,6 +8,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 import com.smartfms.backend.service.AdminAuthException;
 import com.smartfms.backend.service.AiServerException;
@@ -23,6 +24,12 @@ public class ApiExceptionHandler {
     @ExceptionHandler(VehicleNotFoundException.class)
     public ResponseEntity<Map<String, String>> handleVehicleNotFound(VehicleNotFoundException e) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("detail", e.getMessage()));
+    }
+
+    /** 업로드 한도(spring.servlet.multipart.max-file-size) 초과 — 빈 413 대신 이유를 알려준다 */
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<Map<String, String>> handleMaxUploadSize(MaxUploadSizeExceededException e) {
+        return ResponseEntity.status(HttpStatus.CONTENT_TOO_LARGE).body(Map.of("detail", "image_too_large"));
     }
 
     @ExceptionHandler(AdminAuthException.class)
