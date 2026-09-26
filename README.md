@@ -119,9 +119,73 @@ ai / backend / frontend / infra   ← 파트별 작업 브랜치
 
 ## 실행
 
+전체 구성은 **DB(5432) → 백엔드(8080) → AI 서버(8000) → 프론트(5173)** 이다.
+AI 서버 없이도 백엔드가 가짜 결과(StubAiClient)로 동작하므로, 처음엔 **빠른 실행**으로 확인하고 필요할 때 AI 서버를 붙인다.
+
+**필요한 것:** Docker Desktop, Node.js 20.19+ 또는 22.12+, (AI 서버를 돌릴 때) Python 3.13 + [uv](https://docs.astral.sh/uv/)
+
+### 빠른 실행 — AI 서버 없이 (DB + 백엔드 + 프론트)
+
 ```bash
-docker-compose up   # PostgreSQL + 백엔드 로컬 실행
-# AI 서버·프론트는 각 apps/*/README.md 참고
-# AI 모델 가중치(.pt)는 git에 없음 → apps/ai-server/README.md의 "가중치 받기" 참고
-# 백엔드가 실제 AI 서버를 호출하게 하려면 .env에 APP_AI_ENABLED=true (.env.example 참고)
+# 1. DB + 백엔드 (루트에서)
+docker compose up --build        # 처음엔 이미지 빌드로 몇 분 걸림
+
+# 2. 프론트 (새 터미널)
+cd apps/frontend
+npm ci
+npm run dev
 ```
+
+- 대시보드: http://localhost:5173 · 고객 반납 화면: http://localhost:5173/customer
+- 백엔드 API: http://localhost:8080/vehicles
+- `.env`가 없어도 실행된다. 이때 AI는 가짜 결과, 사진은 경로만 생성(S3 미사용), 알림은 로그로 대체된다.
+
+### 전체 실행 — 실제 AI 모델 포함
+
+**1. 환경변수 준비** (각 `.env`는 git에 올라가지 않음)
+
+```bash
+cp .env.example .env                              # 루트: 백엔드용
+cp apps/frontend/.env.example apps/frontend/.env  # 프론트용
+```
+
+루트 `.env`에서 최소한 아래를 설정한다. S3·디스코드는 키가 없으면 `false`로 둔다.
+
+| 변수 | 값 | 용도 |
+|---|---|---|
+| `APP_AI_ENABLED` | `true` | 실제 AI 서버 호출 |
+| `APP_AI_BASE_URL` | `http://host.docker.internal:8000` | 백엔드(Docker 안) → AI 서버(내 PC) 주소 |
+| `APP_ADMIN_TOKEN` | 아무 문자열 | 배차 재개 API 인증 |
+| `APP_S3_ENABLED` / `APP_DISCORD_ENABLED` | `false` | 키가 없으면 끔 |
+
+프론트 `apps/frontend/.env`의 `VITE_ADMIN_TOKEN`에는 `APP_ADMIN_TOKEN`과 **같은 값**을 넣는다.
+
+**2. AI 서버** — 모델 가중치(`.pt`)는 git에 없으므로 먼저 받는다 ([apps/ai-server/README.md](apps/ai-server/README.md)의 "가중치 받기").
+
+```bash
+cd apps/ai-server
+uv sync                                       # 처음엔 torch 설치로 오래 걸림
+uv run uvicorn app.main:app --port 8000       # 시작 시 모델 워밍업 약 7초
+```
+
+**3. DB + 백엔드** (루트에서, AI 서버가 뜬 뒤)
+
+```bash
+docker compose up --build
+```
+
+**4. 프론트** — 빠른 실행의 2번과 같다.
+
+**5. 확인:** http://localhost:5173/customer 에서 차량번호(예: `12가3456`)와 실내 사진으로 반납 → 대시보드 차량 상세에서 판정 결과 확인 → 세차 필요 차량은 "세차 완료 · 배차 재개"
+
+### 자주 막히는 곳
+
+| 증상 | 원인 · 해결 |
+|---|---|
+| 반납이 `503 ai_unavailable` | `APP_AI_ENABLED=true`인데 AI 서버가 꺼져 있거나 주소가 틀림. 백엔드를 Docker 없이 띄웠다면 주소는 `http://localhost:8000` |
+| `db/schema.sql`을 고쳤는데 반영 안 됨 | 초기화 스크립트는 DB를 처음 만들 때만 돈다 → `docker compose down -v` 후 다시 `up` (**DB 데이터 삭제됨**) |
+| 백엔드 기동 시 스키마 검증 오류 | 위와 같음. 예전에 만든 DB 볼륨이 옛 스키마를 갖고 있음 |
+| "배차 재개"가 `관리자 인증에 실패` | 백엔드 `APP_ADMIN_TOKEN`과 프론트 `VITE_ADMIN_TOKEN`이 다름. 프론트 `.env`를 바꿨으면 `npm run dev` 재시작 |
+| 코드를 고쳤는데 백엔드에 반영 안 됨 | `docker compose up --build`로 이미지 다시 빌드 |
+
+파트별 상세(로컬 실행·테스트): [backend](apps/backend/README.md) · [ai-server](apps/ai-server/README.md) · [frontend](apps/frontend/README.md)
