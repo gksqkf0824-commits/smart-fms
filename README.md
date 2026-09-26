@@ -122,5 +122,6 @@ ai / backend / frontend / infra   ← 파트별 작업 브랜치
 ```bash
 docker-compose up   # PostgreSQL + 백엔드 로컬 실행
 # AI 서버·프론트는 각 apps/*/README.md 참고
+# AI 모델 가중치(.pt)는 git에 없음 → apps/ai-server/README.md의 "가중치 받기" 참고
 # 백엔드가 실제 AI 서버를 호출하게 하려면 .env에 APP_AI_ENABLED=true (.env.example 참고)
 ```

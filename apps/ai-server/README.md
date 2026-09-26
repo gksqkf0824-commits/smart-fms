@@ -32,9 +32,19 @@ uv run pytest
 | 모델 | 파일 | 감지 | 응답 필드 |
 |---|---|---|---|
 | Detection | `app/ml/trash_occupy_detection_best.pt` | `trash`, `occupy` | `trash_count`, `trash_large`, `occupy_detected` |
-| Segmentation | `app/ml/stain_seg.pt` | `spill` | `roi_pollution_ratio` |
+| Segmentation | `app/ml/stain_seg.pt` | `spill` (모델 내부 클래스명은 `stain`) | `roi_pollution_ratio` |
 
-- 가중치(`*.pt`)는 저장소에 커밋하지 않는다 (`.gitignore`). 위 경로에 직접 두거나 `.env`로 경로를 덮어쓴다.
+### 가중치 받기
+
+가중치(`*.pt`)는 저장소에 커밋하지 않는다 (`.gitignore`). 팀 드라이브에서 받아 위 경로에 **파일명 그대로** 둔다.
+
+- 다운로드: https://drive.google.com/drive/folders/1xdqQLjUiN50s3_5LvkOI9ZXjIViUHfPw
+- 둘 중 하나라도 없으면 서버 시작(`load_model`) 단계에서 실패한다.
+- 다른 위치에 두려면 `.env`의 `AI_SERVER_DETECTION_MODEL_PATH` / `AI_SERVER_SEGMENTATION_MODEL_PATH`로 경로를 덮어쓴다.
+- 서버 시작 시 빈 이미지로 한 번씩 추론해 둔다(워밍업, 약 7초). 첫 반납 요청이 느려지지 않게 하기 위함.
+
+### 기타
+
 - 임계값(confidence, 대형 쓰레기 기준)은 `app/core/config.py`의 설정값이다. 하드코딩하지 않는다.
 - 자세한 계약은 `docs/API.md` 1번 참고.
 
