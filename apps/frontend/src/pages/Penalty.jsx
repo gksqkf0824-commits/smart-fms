@@ -1,8 +1,18 @@
+import { Plate, RatioCell } from '../components/ui'
+import './Penalty.css'
+
 const penalties = [
   { user: '홍길동', plate: '12가3456', checked_at: '07.05 14:32', roi_pollution_ratio: 0.235, trash_count: 2, trash_large: false, occupy_detected: true,  points: 50000, settled: false, user_alert: true  },
   { user: '김철수', plate: '34나7890', checked_at: '07.05 13:15', roi_pollution_ratio: 0.082, trash_count: 1, trash_large: false, occupy_detected: false, points: 20000, settled: true,  user_alert: false },
   { user: '이영희', plate: '90마2345', checked_at: '07.04 18:00', roi_pollution_ratio: 0.310, trash_count: 3, trash_large: true,  occupy_detected: true,  points: 80000, settled: false, user_alert: true  },
   { user: '박민수', plate: '78라5678', checked_at: '07.04 11:20', roi_pollution_ratio: 0.124, trash_count: 0, trash_large: false, occupy_detected: true,  points: 30000, settled: true,  user_alert: true  },
+]
+
+const summary = [
+  { label: '이번 달 부과', value: '12건', sub: '310,000원' },
+  { label: '정산 대기',   value: '5건',  sub: '130,000원' },
+  { label: '정산 완료',   value: '7건',  sub: '180,000원' },
+  { label: '자동 처리율', value: '83%',  sub: '사람 손을 거치지 않은 비율' },
 ]
 
 function getDetectionText(p) {
@@ -14,64 +24,65 @@ function getDetectionText(p) {
 
 export default function Penalty() {
   return (
-    <div style={{ padding: '24px' }}>
-      <div style={{ fontSize: '12px', color: '#aaa', marginBottom: '4px' }}>패널티 관리</div>
-      <div style={{ fontSize: '20px', fontWeight: '800', color: '#1a2744', marginBottom: '20px' }}>패널티 관리</div>
+    <div className="page">
+      <header className="page-head">
+        <div>
+          <h1 className="page-title">패널티</h1>
+          <p className="page-desc">오염된 채로 반납한 이용자에게 부과한 패널티와 정산 상태예요.</p>
+        </div>
+        <button className="btn btn-secondary">엑셀로 내려받기</button>
+      </header>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '14px', marginBottom: '20px' }}>
-        {[['이번 달 패널티', '12건', '#ef4444', '총 310,000원'], ['정산 대기', '5건', '#f59e0b', '130,000원'], ['정산 완료', '7건', '#22c55e', '180,000원'], ['자동 처리율', '83%', '#4f8ef7', '수동 개입 없음']].map(([l, v, c, s]) => (
-          <div key={l} style={{ background: '#fff', borderRadius: '12px', padding: '18px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', borderTop: `3px solid ${c}` }}>
-            <div style={{ fontSize: '11px', color: '#888', fontWeight: '700', marginBottom: '6px' }}>{l}</div>
-            <div style={{ fontSize: '28px', fontWeight: '900', color: c }}>{v}</div>
-            <div style={{ fontSize: '11px', color: '#aaa', marginTop: '4px' }}>{s}</div>
+      <dl className="panel summary">
+        {summary.map(s => (
+          <div key={s.label}>
+            <dt>{s.label}</dt>
+            <dd className="num">{s.value}</dd>
+            <dd className="summary-sub num">{s.sub}</dd>
           </div>
         ))}
-      </div>
+      </dl>
 
-      <div style={{ background: '#fff', borderRadius: '12px', padding: '20px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-          <div style={{ fontSize: '14px', fontWeight: '800', color: '#1a2744' }}>패널티 내역</div>
-          <button style={{ padding: '7px 14px', background: '#fff', color: '#4f8ef7', border: '1.5px solid #4f8ef7', borderRadius: '6px', fontSize: '12px', fontWeight: '600' }}>엑셀 다운로드</button>
+      <section className="section">
+        <div className="section-head">
+          <h2 className="section-title">부과 내역</h2>
         </div>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
-          <thead>
-            <tr>
-              {['이용자', '차량 번호', '반납 일시', '오염도', '감지 항목', '부과 금액', '상태', '증거 사진'].map(h => (
-                <th key={h} style={{ background: '#f8f9fa', padding: '9px 12px', textAlign: 'left', fontWeight: '700', color: '#666', borderBottom: '2px solid #eee' }}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {penalties.map(p => (
-              <tr key={p.plate + p.user} style={{ borderBottom: '1px solid #f5f5f5' }}>
-                <td style={{ padding: '11px 12px' }}>{p.user}</td>
-                <td style={{ padding: '11px 12px' }}>{p.plate}</td>
-                <td style={{ padding: '11px 12px' }}>{p.checked_at}</td>
-                <td style={{ padding: '11px 12px' }}>
-                  <strong style={{ color: p.roi_pollution_ratio >= 0.05 ? '#ef4444' : '#f59e0b' }}>
-                    {(p.roi_pollution_ratio * 100).toFixed(1)}%
-                  </strong>
-                </td>
-                <td style={{ padding: '11px 12px' }}>
-                  {getDetectionText(p)}
-                  {p.user_alert && (
-                    <div style={{ fontSize: '10px', color: '#4f8ef7', marginTop: '4px' }}>소지품이 발견되어 안내드렸습니다</div>
-                  )}
-                </td>
-                <td style={{ padding: '11px 12px' }}><strong>{p.points.toLocaleString()}원</strong></td>
-                <td style={{ padding: '11px 12px' }}>
-                  <span style={{ background: p.settled ? '#dcfce7' : '#fef9c3', color: p.settled ? '#16a34a' : '#b45309', padding: '3px 9px', borderRadius: '20px', fontSize: '11px', fontWeight: '700' }}>
-                    {p.settled ? '정산 완료' : '정산 대기'}
-                  </span>
-                </td>
-                <td style={{ padding: '11px 12px' }}>
-                  <button style={{ padding: '5px 12px', background: '#fff', color: '#4f8ef7', border: '1.5px solid #4f8ef7', borderRadius: '6px', fontSize: '11px', fontWeight: '600' }}>S3 링크</button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+        <div className="panel table-panel">
+          <div className="table-scroll">
+            <table className="table">
+              <thead>
+                <tr>
+                  {['이용자', '차량', '반납 일시', '오염 면적', '감지 항목'].map(h => <th key={h} scope="col">{h}</th>)}
+                  <th scope="col" className="align-end">부과 금액</th>
+                  <th scope="col">정산</th>
+                  <th scope="col"><span className="sr-only">증거 사진</span></th>
+                </tr>
+              </thead>
+              <tbody>
+                {penalties.map(p => (
+                  <tr key={p.plate + p.user}>
+                    <td>{p.user}</td>
+                    <td><Plate plate={p.plate} /></td>
+                    <td className="num">{p.checked_at}</td>
+                    <td><RatioCell ratio={p.roi_pollution_ratio} /></td>
+                    <td>
+                      {getDetectionText(p)}
+                      {p.user_alert && <div className="penalty-note">소지품 안내를 보냈어요</div>}
+                    </td>
+                    <td className="align-end num"><strong>{p.points.toLocaleString()}원</strong></td>
+                    <td>
+                      <span className={`tag ${p.settled ? 'tone-go' : 'tone-wash'}`}>{p.settled ? '정산 완료' : '정산 대기'}</span>
+                    </td>
+                    <td className="align-end">
+                      <button className="btn btn-secondary btn-sm">증거 사진</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
     </div>
   )
 }

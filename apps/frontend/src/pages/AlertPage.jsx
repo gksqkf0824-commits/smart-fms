@@ -1,47 +1,59 @@
+import { useState } from 'react'
+import { Plate } from '../components/ui'
+import './AlertPage.css'
+
+const TYPES = {
+  block:   { label: '배차 중단',     tone: 'stop' },
+  wash:    { label: '세차 호출',     tone: 'wash' },
+  notify:  { label: '디스코드 알림', tone: 'wait' },
+  penalty: { label: '패널티',        tone: 'wait' },
+  normal:  { label: '정상 반납',     tone: 'go' },
+}
+
 const alerts = [
-  { color: '#ef4444', title: '배차 자동 중단 — 12가3456', desc: '오염도 23.5% 감지 · grade: BLOCK · 배차 자동 차단 + Swap 실행', time: '14:32' },
-  { color: '#f59e0b', title: '세차 업체 자동 호출 — 12가3456', desc: '세차 API 호출 완료 · partner_id: WC-0042 · 예상 도착 15:00', time: '14:33' },
-  { color: '#4f8ef7', title: '디스코드 알림 전송 — #fleet-alert', desc: '오염 감지 알림 자동 전송 완료 (12가3456 · 23.5%)', time: '14:33' },
-  { color: '#a855f7', title: '패널티 부과 예약 — 홍길동', desc: '50,000원 패널티 예약 · PostgreSQL 기록 완료 · S3 증거 사진 저장', time: '14:33' },
-  { color: '#22c55e', title: '정상 반납 — 56다1234', desc: '오염도 1.1% · grade: NORMAL · 즉시 AVAILABLE 상태 전환', time: '12:50' },
-  { color: '#22c55e', title: '정상 반납 — 78라5678', desc: '오염도 0.3% · grade: NORMAL · 즉시 AVAILABLE 상태 전환', time: '11:40' },
+  { type: 'block',   plate: '12가3456', title: '배차를 자동으로 멈췄어요', desc: '오염 면적 23.5%로 심각 판정이 나와 배차를 막고, 잡혀 있던 예약을 다른 차량으로 바꿨어요.', time: '14:32' },
+  { type: 'wash',    plate: '12가3456', title: '세차 업체를 불렀어요',     desc: '제휴 업체 WC-0042에 요청했어요. 15:00 도착 예정이에요.', time: '14:33' },
+  { type: 'notify',  plate: '12가3456', title: '디스코드로 알렸어요',       desc: '#fleet-alert 채널에 오염 감지 알림을 보냈어요.', time: '14:33' },
+  { type: 'penalty', plate: '12가3456', title: '패널티를 예약했어요',       desc: '홍길동 님에게 50,000원을 예약하고 증거 사진을 S3에 저장했어요.', time: '14:33' },
+  { type: 'normal',  plate: '56다1234', title: '정상 반납',                desc: '오염 면적 1.1%로 정상 판정이 나와 바로 운행 가능으로 바꿨어요.', time: '12:50' },
+  { type: 'normal',  plate: '78라5678', title: '정상 반납',                desc: '오염 면적 0.3%로 정상 판정이 나와 바로 운행 가능으로 바꿨어요.', time: '11:40' },
 ]
 
-const filters = ['전체', '배차 중단', '세차 호출', '디스코드 알림', '패널티', '정상 반납']
-
 export default function AlertPage() {
+  const [filter, setFilter] = useState('all')
+  const shown = filter === 'all' ? alerts : alerts.filter(a => a.type === filter)
+
   return (
-    <div style={{ padding: '24px' }}>
-      <div style={{ fontSize: '12px', color: '#aaa', marginBottom: '4px' }}>알림 내역</div>
-      <div style={{ fontSize: '20px', fontWeight: '800', color: '#1a2744', marginBottom: '20px' }}>자동 처리 알림 내역</div>
+    <div className="page">
+      <header className="page-head">
+        <div>
+          <h1 className="page-title">알림 내역</h1>
+          <p className="page-desc">AI 판정 뒤 시스템이 스스로 처리한 일을 모았어요.</p>
+        </div>
+      </header>
 
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap' }}>
-        {filters.map((f, i) => (
-          <button key={f} style={{
-            padding: '6px 14px', borderRadius: '20px', fontSize: '12px', fontWeight: '600',
-            cursor: 'pointer', border: '1.5px solid #e0e0e0',
-            background: i === 0 ? '#1a2744' : '#fff',
-            color: i === 0 ? '#fff' : '#888',
-          }}>{f}</button>
+      <div className="chips alert-filters" role="group" aria-label="종류로 거르기">
+        <button className="chip" aria-pressed={filter === 'all'} onClick={() => setFilter('all')}>전체</button>
+        {Object.entries(TYPES).map(([key, t]) => (
+          <button key={key} className="chip" aria-pressed={filter === key} onClick={() => setFilter(key)}>{t.label}</button>
         ))}
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-        {alerts.map((a, i) => (
-          <div key={i} style={{
-            background: '#fff', borderRadius: '12px', padding: '16px 20px',
-            display: 'flex', alignItems: 'flex-start', gap: '14px',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.05)', borderLeft: `4px solid ${a.color}`,
-          }}>
-            <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: a.color, flexShrink: 0, marginTop: '4px' }} />
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: '13px', fontWeight: '700', marginBottom: '4px' }}>{a.title}</div>
-              <div style={{ fontSize: '12px', color: '#888', lineHeight: '1.5' }}>{a.desc}</div>
+      <ol className="panel timeline">
+        {shown.map((a, i) => (
+          <li key={i} className={`timeline-item tone-${TYPES[a.type].tone}`}>
+            <time className="timeline-time num">{a.time}</time>
+            <span className="timeline-dot" aria-hidden="true" />
+            <div className="timeline-body">
+              <div className="timeline-head">
+                <h2>{a.title}</h2>
+                <Plate plate={a.plate} />
+              </div>
+              <p>{a.desc}</p>
             </div>
-            <div style={{ fontSize: '11px', color: '#bbb', whiteSpace: 'nowrap' }}>{a.time}</div>
-          </div>
+          </li>
         ))}
-      </div>
+      </ol>
     </div>
   )
 }

@@ -1,0 +1,91 @@
+.analysis {
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr);
+  gap: 32px;
+  align-items: start;
+}
+.analysis-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 24px;
+  align-items: start;
+}
+
+/* 왼쪽 — 검수한 차량 */
+.analysis-list { position: sticky; top: 88px; }
+.analysis-list ul { display: grid; gap: 4px; }
+.analysis-item {
+  display: grid;
+  gap: 6px;
+  justify-items: start;
+  padding: 12px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+.analysis-item:hover { background: var(--fill-soft); }
+.analysis-item[aria-current='page'] { border-color: var(--blue-line); background: var(--blue-soft); }
+.analysis-item-meta { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-3); }
+.analysis-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--tone-fill); }
+
+/* 가운데 — 사진과 처리 과정 */
+.pipeline { margin-top: 24px; }
+.pipeline-steps {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+}
+.pipeline-steps li {
+  position: relative;
+  display: grid;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+/* 단계 사이 연결선 */
+.pipeline-steps li:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  top: 11px;
+  left: 30px;
+  right: -2px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--blue-line);
+}
+.pipeline-mark {
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--blue);
+  color: #fff;
+}
+.pipeline-no { margin-right: 4px; font-weight: 700; color: var(--ink-3); }
+
+.analysis-actions { display: flex; gap: 8px; margin-top: 24px; }
+
+/* 오른쪽 — 판정 */
+.analysis-side { display: grid; gap: 12px; }
+.analysis-side .panel + .panel { margin-top: 0; }
+
+.metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.metrics div { display: grid; gap: 2px; }
+.metrics dt { font-size: 13px; color: var(--ink-3); }
+.metrics dd { font-size: 20px; font-weight: 700; letter-spacing: -0.02em; }
+.metrics-note { margin-top: 12px; font-size: 13px; color: var(--ink-3); }
+
+@media (max-width: 1180px) {
+  .analysis-main { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 860px) {
+  .analysis { grid-template-columns: 1fr; }
+  .analysis-list { position: static; }
+  .analysis-list ul { display: flex; overflow-x: auto; gap: 8px; padding-bottom: 4px; }
+  .analysis-item { flex: none; border-color: var(--line); }
+  .pipeline-steps { grid-template-columns: 1fr; gap: 12px; }
+  .pipeline-steps li { grid-template-columns: 24px 1fr; align-items: center; gap: 10px; }
+  .pipeline-steps li:not(:last-child)::after { top: 28px; left: 11px; right: auto; width: 2px; height: 10px; }
+}

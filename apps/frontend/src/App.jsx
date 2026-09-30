@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import Sidebar from './components/Sidebar'
+import AppHeader from './components/AppHeader'
 import Home from './pages/Home'
 import VehicleList from './pages/VehicleList'
 import VehicleDetail from './pages/VehicleDetail'
@@ -14,12 +14,10 @@ import Profile from './pages/Profile'
 
 function Layout({ children }) {
   return (
-    <div style={{ display: 'flex' }}>
-      <Sidebar />
-      <div style={{ marginLeft: '200px', flex: 1, minHeight: '100vh', background: '#f8f9fa' }}>
-        {children}
-      </div>
-    </div>
+    <>
+      <AppHeader />
+      <main>{children}</main>
+    </>
   )
 }
 
@@ -37,8 +35,8 @@ export default function App() {
         <Route path="/return" element={<Layout><ReturnAccept /></Layout>} />
         <Route path="/penalty" element={<Layout><Penalty /></Layout>} />
         <Route path="/alert" element={<Layout><AlertPage /></Layout>} />
-        <Route path="*" element={<Navigate to="/" />} />
         <Route path="/profile" element={<Layout><Profile /></Layout>} />
+        <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </BrowserRouter>
   )

@@ -1,36 +1,21 @@
 import { useState, useEffect } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
+import { API_BASE, formatDateTime, networkMessage } from '../fleet'
+import { ChevronLeft, Notice, Plate, StatusTag } from '../components/ui'
+import { ActionSteps, Detections, Verdict } from '../components/Inspection'
+import './VehicleDetail.css'
 
-const API_BASE = 'http://localhost:8080'
 // 관리자 API(배차 재개) 인증 — 백엔드 APP_ADMIN_TOKEN과 같은 값을 apps/frontend/.env에 설정
 const ADMIN_TOKEN = import.meta.env.VITE_ADMIN_TOKEN ?? ''
 
-const statusLabel = { AVAILABLE: '운행 가능', CARWASH_NEEDED: '세차 필요', INSPECTING: '검수 중' }
-const statusColor = { AVAILABLE: '#16a34a', CARWASH_NEEDED: '#92400e', INSPECTING: '#991b1b' }
-const statusBg    = { AVAILABLE: '#f0fdf4', CARWASH_NEEDED: '#fffbeb', INSPECTING: '#fef2f2' }
-
-const gradeConfig = {
-  NORMAL: { label: '정상', color: '#16a34a', light: '#f0fdf4' },
-  WARN:   { label: '경고', color: '#92400e', light: '#fffbeb' },
-  BLOCK:  { label: '심각', color: '#991b1b', light: '#fef2f2' },
-}
-
-const actionLabel = {
-  dispatch_blocked:  '배차 차단',
-  carwash_requested: '세차 접수',
-  penalty_reserved:  '패널티 예약',
-  notified:          'Discord 알림 전송',
-  user_alerted:      '소지품이 발견되어 안내드렸습니다',
-}
-
 export default function VehicleDetail() {
-  const navigate = useNavigate()
   const { id } = useParams()
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [resuming, setResuming] = useState(false)
   const [resumeError, setResumeError] = useState(null)
+  const [resumed, setResumed] = useState(false)
 
   const resumeDispatch = () => {
     setResuming(true)
@@ -40,172 +25,98 @@ export default function VehicleDetail() {
       headers: { 'X-Admin-Token': ADMIN_TOKEN },
     })
       .then(res => {
-        if (res.status === 401) throw new Error('관리자 인증에 실패했습니다.')
+        if (res.status === 401) throw new Error('관리자 인증에 실패했어요. .env의 VITE_ADMIN_TOKEN을 확인해 주세요.')
         if (!res.ok) return res.json().then(body => { throw new Error(body.detail ?? `서버 오류 (${res.status})`) })
         return res.json()
       })
-      .then(body => setData(prev => ({ ...prev, status: body.status })))
-      .catch(e => setResumeError(e.message === 'Failed to fetch' ? '서버에 연결할 수 없습니다.' : e.message))
+      .then(body => { setData(prev => ({ ...prev, status: body.status })); setResumed(true) })
+      .catch(e => setResumeError(networkMessage(e)))
       .finally(() => setResuming(false))
   }
 
   useEffect(() => {
     setLoading(true)
     setError(null)
+    setResumed(false)
     fetch(`${API_BASE}/vehicles/${encodeURIComponent(id)}`)
       .then(res => {
-        if (res.status === 404) throw new Error('등록되지 않은 차량입니다.')
+        if (res.status === 404) throw new Error('등록되지 않은 차량이에요. 번호판을 다시 확인해 주세요.')
         if (!res.ok) throw new Error(`서버 오류 (${res.status})`)
         return res.json()
       })
       .then(setData)
-      .catch(e => setError(e.message === 'Failed to fetch' ? '서버에 연결할 수 없습니다.' : e.message))
+      .catch(e => setError(networkMessage(e)))
       .finally(() => setLoading(false))
   }, [id])
 
+  const back = <Link to="/vehicles" className="back-link"><ChevronLeft size={18} />차량 목록</Link>
+
   if (loading || error || !data) {
     return (
-      <div style={{ padding: '32px 40px', background: '#f9fafb', minHeight: '100vh' }}>
-        <div style={{ fontSize: '12px', color: '#9ca3af', marginBottom: '20px', cursor: 'pointer' }} onClick={() => navigate('/vehicles')}>
-          차량 목록 / <span style={{ color: '#374151' }}>{id}</span>
-        </div>
-        <div style={{ fontSize: '14px', color: error ? '#991b1b' : '#9ca3af' }}>
-          {error ?? '차량 정보를 불러오는 중…'}
-        </div>
+      <div className="page">
+        {back}
+        {error
+          ? <Notice tone="error" title={`${id} 차량을 열 수 없어요`}>{error}</Notice>
+          : <p className="empty">차량 정보를 불러오고 있어요</p>}
       </div>
     )
   }
 
   const ins = data.latest_inspection
-  const grade = ins ? gradeConfig[ins.grade] : null
-  const pollPct = ins ? (ins.roi_pollution_ratio * 100).toFixed(1) : null
-  const imageUrl = ins?.image_url ?? null
 
   return (
-    <div style={{ padding: '32px 40px', background: '#f9fafb', minHeight: '100vh' }}>
+    <div className="page">
+      {back}
 
-      <div style={{ fontSize: '12px', color: '#9ca3af', marginBottom: '20px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }} onClick={() => navigate('/vehicles')}>
-        <span>차량 목록</span>
-        <span>/</span>
-        <span style={{ color: '#374151' }}>{data.plate}</span>
-      </div>
-
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '32px' }}>
+      <header className="page-head detail-head">
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '6px' }}>
-            <h1 style={{ fontSize: '24px', fontWeight: '700', color: '#111827', margin: 0 }}>{data.plate}</h1>
-            <span style={{ fontSize: '11px', fontWeight: '600', padding: '3px 10px', borderRadius: '4px', color: statusColor[data.status], background: statusBg[data.status], border: `1px solid ${statusColor[data.status]}30` }}>
-              {statusLabel[data.status]}
-            </span>
+          <div className="detail-title">
+            <h1><Plate plate={data.plate} size="lg" /></h1>
+            <StatusTag status={data.status} />
           </div>
-          <div style={{ fontSize: '13px', color: '#6b7280' }}>
-            {data.model} &nbsp;·&nbsp; {data.zone} &nbsp;·&nbsp; 반납{' '}
-            {ins?.checked_at ? new Date(ins.checked_at).toLocaleString('ko-KR', { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-'}
-          </div>
+          <p className="page-desc">{data.zone ? `${data.zone}에 배치된` : '배치 존이 정해지지 않은'} {data.model ?? '차량'}</p>
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px' }}>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <button style={{ padding: '8px 18px', background: '#fff', color: '#374151', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '13px', fontWeight: '500', cursor: 'pointer' }}>세차 호출</button>
-            <button style={{ padding: '8px 18px', background: '#fff', color: '#374151', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '13px', fontWeight: '500', cursor: 'pointer' }}>패널티 부과</button>
-            {data.status === 'CARWASH_NEEDED' && (
-              <button onClick={resumeDispatch} disabled={resuming}
-                style={{ padding: '8px 18px', background: '#111827', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '13px', fontWeight: '500', cursor: resuming ? 'default' : 'pointer', opacity: resuming ? 0.6 : 1 }}>
-                {resuming ? '재개 중…' : '세차 완료 · 배차 재개'}
-              </button>
-            )}
-          </div>
-          {resumeError && <div style={{ fontSize: '12px', color: '#991b1b' }}>{resumeError}</div>}
+        <div className="detail-actions">
+          <button className="btn btn-secondary">세차 호출</button>
+          <button className="btn btn-secondary">패널티 부과</button>
+          {data.status === 'CARWASH_NEEDED' && (
+            <button className="btn btn-primary" onClick={resumeDispatch} disabled={resuming}>
+              {resuming ? '배차 재개 중' : '세차 완료, 배차 재개'}
+            </button>
+          )}
         </div>
-      </div>
+      </header>
 
-      {!ins && (
-        <div style={{ background: '#fff', borderRadius: '10px', border: '1px solid #e5e7eb', padding: '40px', textAlign: 'center', fontSize: '13px', color: '#9ca3af' }}>
-          아직 검수 이력이 없는 차량입니다.
-        </div>
-      )}
+      {resumeError && <div className="detail-notice"><Notice tone="error" title="배차를 재개하지 못했어요">{resumeError}</Notice></div>}
+      {resumed && <div className="detail-notice"><Notice tone="go">배차를 재개했어요. 이제 이 차량을 바로 배차할 수 있어요.</Notice></div>}
 
-      {ins && grade && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: '24px' }}>
+      {!ins ? (
+        <div className="panel empty">아직 검수한 적이 없는 차량이에요. 반납 사진이 들어오면 여기에 판정 결과가 보여요.</div>
+      ) : (
+        <div className="detail-grid">
+          <figure className="photo">
+            {ins.image_url
+              ? <img src={ins.image_url} alt={`${data.plate} 반납 시 실내 사진`} />
+              : <div className="photo-empty">저장된 사진이 없어요</div>}
+            <figcaption className="num">
+              {ins.checked_at ? `${formatDateTime(ins.checked_at)} 반납 때 찍은 사진` : '반납 때 찍은 사진'}
+            </figcaption>
+          </figure>
 
-          {/* 좌측 — 이미지 */}
-          <div style={{ background: '#fff', borderRadius: '10px', border: '1px solid #e5e7eb', overflow: 'hidden', alignSelf: 'flex-start' }}>
-            <div style={{ padding: '14px 18px', borderBottom: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '13px', fontWeight: '600', color: '#374151' }}>원본 사진</span>
-              <span style={{ fontSize: '11px', color: '#9ca3af' }}>반납 시 자동 촬영</span>
-            </div>
-            <div style={{ height: '440px', background: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              {imageUrl ? (
-                <img src={imageUrl} alt="차량 실내 사진" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              ) : (
-                <div style={{ fontSize: '13px', color: '#9ca3af' }}>사진 없음</div>
-              )}
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-
-            <div style={{ background: '#fff', borderRadius: '10px', border: '1px solid #e5e7eb', padding: '20px' }}>
-              <div style={{ fontSize: '11px', fontWeight: '600', color: '#9ca3af', letterSpacing: '0.5px', marginBottom: '14px', textTransform: 'uppercase' }}>판정 결과</div>
-              <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: '16px' }}>
-                <div>
-                  <div style={{ fontSize: '40px', fontWeight: '700', color: grade.color, lineHeight: 1 }}>{pollPct}%</div>
-                  <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '4px' }}>오염 면적 비율</div>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: '18px', fontWeight: '700', color: grade.color }}>{grade.label}</div>
-                  <div style={{ fontSize: '11px', color: '#9ca3af', marginTop: '2px' }}>등급</div>
-                </div>
-              </div>
-              <div style={{ background: '#f3f4f6', borderRadius: '100px', height: '6px', overflow: 'hidden' }}>
-                <div style={{ width: `${pollPct}%`, height: '100%', background: grade.color, borderRadius: '100px', transition: 'width 0.8s ease' }} />
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#d1d5db', marginTop: '4px' }}>
-                <span>0%</span>
-                <span>기준치 2% / 5%</span>
-                <span>100%</span>
-              </div>
-            </div>
-
-            <div style={{ background: '#fff', borderRadius: '10px', border: '1px solid #e5e7eb', padding: '20px' }}>
-              <div style={{ fontSize: '11px', fontWeight: '600', color: '#9ca3af', letterSpacing: '0.5px', marginBottom: '14px', textTransform: 'uppercase' }}>감지 항목</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {ins.trash_count > 0 && (
-                  <div style={{ paddingBottom: '10px', borderBottom: ins.occupy_detected ? '1px solid #f3f4f6' : 'none' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div style={{ fontSize: '13px', fontWeight: '500', color: '#374151' }}>고형 쓰레기</div>
-                      <span style={{ fontSize: '13px', fontWeight: '600', color: '#374151' }}>{ins.trash_count}개</span>
-                    </div>
-                    {ins.trash_large && (
-                      <div style={{ fontSize: '11px', color: '#ef4444', marginTop: '4px' }}>대형 쓰레기 포함</div>
-                    )}
-                  </div>
-                )}
-                {ins.occupy_detected && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ fontSize: '13px', fontWeight: '500', color: '#374151' }}>두고 간 소지품</div>
-                    <span style={{ fontSize: '13px', fontWeight: '600', color: '#374151' }}>감지됨</span>
-                  </div>
-                )}
-                {ins.trash_count === 0 && !ins.occupy_detected && (
-                  <div style={{ fontSize: '13px', color: '#9ca3af' }}>감지된 항목 없음</div>
-                )}
-              </div>
-            </div>
-
-            <div style={{ background: '#fff', borderRadius: '10px', border: '1px solid #e5e7eb', padding: '20px' }}>
-              <div style={{ fontSize: '11px', fontWeight: '600', color: '#9ca3af', letterSpacing: '0.5px', marginBottom: '14px', textTransform: 'uppercase' }}>자동 처리 결과</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {ins.actions.map((a, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 0', borderBottom: i < ins.actions.length - 1 ? '1px solid #f3f4f6' : 'none' }}>
-                    <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#111827', flexShrink: 0 }} />
-                    <span style={{ fontSize: '13px', color: '#374151' }}>{actionLabel[a] ?? a}</span>
-                    <span style={{ marginLeft: 'auto', fontSize: '11px', color: '#9ca3af' }}>완료</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-          </div>
+          <aside className="detail-side">
+            <section className="panel panel-pad">
+              <h2 className="sr-only">AI 판정</h2>
+              <Verdict ins={ins} />
+            </section>
+            <section className="panel panel-pad">
+              <h2 className="panel-title">감지한 물체</h2>
+              <Detections ins={ins} />
+            </section>
+            <section className="panel panel-pad">
+              <h2 className="panel-title">자동으로 처리한 일</h2>
+              <ActionSteps actions={ins.actions} />
+            </section>
+          </aside>
         </div>
       )}
     </div>

@@ -1,0 +1,107 @@
+.gnb {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--paper);
+  border-bottom: 1px solid var(--line);
+}
+
+.gnb-inner {
+  max-width: var(--page-max);
+  height: 64px;
+  margin: 0 auto;
+  padding: 0 var(--gutter);
+  display: flex;
+  align-items: center;
+  gap: 40px;
+}
+
+.gnb-brand { flex: none; display: flex; }
+
+.gnb-nav { flex: 1; display: flex; gap: 4px; min-width: 0; }
+
+.gnb-link {
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink-2);
+  white-space: nowrap;
+  transition: background-color 0.15s, color 0.15s;
+}
+.gnb-link:hover { background: var(--fill); color: var(--ink); }
+.gnb-link.active { color: var(--blue); }
+
+.account { position: relative; flex: none; }
+
+.account-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 8px 0 4px;
+  border-radius: 999px;
+  color: var(--ink-2);
+  transition: background-color 0.15s;
+}
+.account-button:hover,
+.account-button[aria-expanded='true'] { background: var(--fill); }
+
+.avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--blue-soft);
+  color: var(--blue);
+  font-size: 13px;
+  font-weight: 700;
+}
+.account-name { font-size: 14px; font-weight: 600; color: var(--ink); }
+
+.account-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 220px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--paper);
+  box-shadow: 0 12px 32px rgba(27, 34, 48, 0.12);
+}
+.account-who {
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px 12px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid var(--line);
+  font-size: 14px;
+}
+.account-who span { font-size: 13px; color: var(--ink-3); }
+.account-menu button {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  text-align: left;
+  font-size: 14px;
+  color: var(--ink-2);
+}
+.account-menu button:hover { background: var(--fill); color: var(--ink); }
+
+/* 좁은 화면: 로고·계정 한 줄, 메뉴는 아래 줄에서 가로 스크롤 */
+@media (max-width: 900px) {
+  .gnb-inner { height: auto; flex-wrap: wrap; gap: 0; padding-top: 10px; }
+  .gnb-brand { order: 1; flex: 1; }
+  .account { order: 2; }
+  .account-name { display: none; }
+  .gnb-nav {
+    order: 3;
+    flex-basis: 100%;
+    margin: 6px calc(var(--gutter) * -1) 0;
+    padding: 0 calc(var(--gutter) - 12px) 8px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+}

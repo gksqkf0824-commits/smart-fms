@@ -1,21 +1,18 @@
 import { useState, useEffect } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
+import { API_BASE, formatDateTime, formatShortDateTime, networkMessage, ratioTone } from '../fleet'
+import { CheckIcon, Notice, Plate } from '../components/ui'
+import { ActionSteps, Detections, Verdict } from '../components/Inspection'
+import './AIAnalysis.css'
 
-const API_BASE = 'http://localhost:8080'
+// 반납 사진 1장이 거치는 처리 순서 (docs/API.md의 POST /return 내부 동작)
+const PIPELINE = ['사진 수신', '얼굴·번호판 가림', '모델 추론', '등급 판정', '자동 조치']
 
-const gradeLabel = { NORMAL: '정상', WARN: '경고', BLOCK: '심각' }
-
-const actionLabel = {
-  dispatch_blocked:  '배차 자동 중단',
-  carwash_requested: '세차 업체 호출',
-  penalty_reserved:  '패널티 예약',
-  notified:          'Discord 알림 전송',
-  user_alerted:      '소지품이 발견되어 안내드렸습니다',
-}
+// 검증 데이터 기준 모델 성능 (AI 팀 보고 값)
+const MODEL_METRICS = [['Precision', '0.897'], ['Recall', '0.869'], ['mAP50', '0.909']]
 
 export default function AIAnalysis() {
   const { id } = useParams()
-  const navigate = useNavigate()
   const [inspected, setInspected] = useState([])   // 검수 이력이 있는 차량 (최근 검수 순)
   const [detail, setDetail] = useState(null)
   const [error, setError] = useState(null)
@@ -31,7 +28,7 @@ export default function AIAnalysis() {
         list.filter(v => v.last_checked)
           .sort((a, b) => new Date(b.last_checked) - new Date(a.last_checked))
       ))
-      .catch(e => setError(e.message === 'Failed to fetch' ? '서버에 연결할 수 없습니다.' : e.message))
+      .catch(e => setError(networkMessage(e)))
   }, [])
 
   const plate = id ?? inspected[0]?.plate
@@ -42,171 +39,112 @@ export default function AIAnalysis() {
     setError(null)
     fetch(`${API_BASE}/vehicles/${encodeURIComponent(plate)}`)
       .then(res => {
-        if (res.status === 404) throw new Error('등록되지 않은 차량입니다.')
+        if (res.status === 404) throw new Error('등록되지 않은 차량이에요.')
         if (!res.ok) throw new Error(`서버 오류 (${res.status})`)
         return res.json()
       })
       .then(setDetail)
-      .catch(e => setError(e.message === 'Failed to fetch' ? '서버에 연결할 수 없습니다.' : e.message))
+      .catch(e => setError(networkMessage(e)))
   }, [plate])
 
   const ins = detail?.latest_inspection
-  if (error || !ins) {
-    const message = error
-      ?? (detail ? '아직 검수 이력이 없는 차량입니다.'
-        : plate ? '분석 결과를 불러오는 중…'
-        : inspected.length === 0 ? '검수 이력이 있는 차량이 없습니다.' : '분석 결과를 불러오는 중…')
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#0a0c14', color: error ? '#ef4444' : '#8892b0', fontSize: '13px' }}>
-        {message}
-      </div>
-    )
-  }
+  const detectionCount = ins ? (ins.trash_count > 0 ? 1 : 0) + (ins.occupy_detected ? 1 : 0) : 0
 
-  const data = { ...ins, vehicle: detail.plate }
-  const pollPct = (data.roi_pollution_ratio * 100).toFixed(1)
-  const pollColor = data.roi_pollution_ratio >= 0.05 ? '#ef4444' : data.roi_pollution_ratio >= 0.02 ? '#f59e0b' : '#22c55e'
-  const font = "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif"
-  const detectionCount = (data.trash_count > 0 ? 1 : 0) + (data.occupy_detected ? 1 : 0)
+  let body
+  if (error) body = <Notice tone="error" title="분석 결과를 불러오지 못했어요">{error}</Notice>
+  else if (!ins) body = (
+    <p className="empty">
+      {detail ? '아직 검수한 적이 없는 차량이에요.'
+        : plate || inspected.length > 0 ? '분석 결과를 불러오고 있어요'
+        : '검수 이력이 있는 차량이 없어요. 반납 접수에서 사진을 올려 보세요.'}
+    </p>
+  )
+  else body = (
+    <div className="analysis-main">
+      <section className="analysis-photo">
+        <figure className="photo">
+          {ins.image_url
+            ? <img src={ins.image_url} alt={`${detail.plate} 반납 시 실내 사진`} />
+            : <div className="photo-empty">저장된 사진이 없어요</div>}
+        </figure>
+
+        <div className="pipeline">
+          <h2 className="panel-title">처리 과정</h2>
+          <ol className="pipeline-steps">
+            {PIPELINE.map((step, i) => (
+              <li key={step}>
+                <span className="pipeline-mark"><CheckIcon size={14} /></span>
+                <span><span className="pipeline-no num">{i + 1}</span>{step}</span>
+              </li>
+            ))}
+          </ol>
+        </div>
+
+        <div className="analysis-actions">
+          <button className="btn btn-secondary btn-sm">배차 중단</button>
+          <button className="btn btn-secondary btn-sm">세차 호출</button>
+        </div>
+      </section>
+
+      <aside className="analysis-side">
+        <section className="panel panel-pad">
+          <h2 className="sr-only">AI 판정</h2>
+          <Verdict ins={ins} />
+        </section>
+        <section className="panel panel-pad">
+          <h2 className="panel-title">감지한 물체 <span className="muted num">{detectionCount}건</span></h2>
+          <Detections ins={ins} />
+        </section>
+        <section className="panel panel-pad">
+          <h2 className="panel-title">자동으로 처리한 일</h2>
+          <ActionSteps actions={ins.actions} />
+        </section>
+        <section className="panel panel-pad">
+          <h2 className="panel-title">모델 성능</h2>
+          <dl className="metrics">
+            {MODEL_METRICS.map(([k, v]) => (
+              <div key={k}><dt>{k}</dt><dd className="num">{v}</dd></div>
+            ))}
+          </dl>
+          <p className="metrics-note">검증 데이터 기준이에요.</p>
+        </section>
+      </aside>
+    </div>
+  )
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#0a0c14', color: '#cdd6f4', fontFamily: font }}>
-
-      <div style={{ background: '#0f1117', borderBottom: '1px solid #1e2235', padding: '0 20px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ color: '#aaa', fontSize: '12px' }}>AI 분석</span>
-          <span style={{ color: '#2d3555' }}>/</span>
-          <span style={{ fontSize: '14px', fontWeight: '700', color: '#fff' }}>차량 실내 AI 오염도 분석</span>
+    <div className="page">
+      <header className="page-head">
+        <div>
+          <h1 className="page-title">AI 분석</h1>
+          <p className="page-desc">
+            {ins
+              ? <>반납 사진을 쓰레기·소지품 감지 모델과 오염 면적 모델이 함께 본 결과예요. <span className="num">{formatDateTime(ins.checked_at)}</span> 검수</>
+              : '반납 사진을 쓰레기·소지품 감지 모델과 오염 면적 모델이 함께 본 결과예요.'}
+          </p>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <span style={{ fontSize: '12px', color: '#4a5568' }}>Detection + Segmentation</span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 6px #22c55e' }} />
-            <span style={{ fontSize: '12px', color: '#22c55e', fontWeight: '600' }}>서버 정상</span>
-          </div>
-        </div>
-      </div>
+      </header>
 
-      <div style={{ background: '#0d0f1a', borderBottom: '1px solid #1e2235', padding: '0 20px', height: '34px', display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-        {['이미지 업로드', '번호판·얼굴 마스킹', 'YOLO 추론', '오염도 판정', '자동 조치'].map((s, i) => (
-          <div key={s} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <div style={{ width: '20px', height: '20px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: '700', background: '#22c55e', color: '#fff' }}>✓</div>
-              <span style={{ fontSize: '11px', color: '#22c55e', whiteSpace: 'nowrap' }}>{s}</span>
-            </div>
-            {i < 4 && <div style={{ width: '24px', height: '1px', background: '#22c55e' }} />}
-          </div>
-        ))}
-      </div>
-
-      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-
-        <div style={{ width: '180px', background: '#0d0f1a', borderRight: '1px solid #1e2235', padding: '14px 10px', display: 'flex', flexDirection: 'column', gap: '10px', flexShrink: 0 }}>
-          <div style={{ fontSize: '10px', color: '#4f8ef7', fontWeight: '700', letterSpacing: '0.5px', paddingBottom: '6px', borderBottom: '1px solid #1e2235' }}>차량 정보</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', overflowY: 'auto' }}>
-            {inspected.map(v => {
-              const selected = v.plate === data.vehicle
-              return (
-                <div key={v.plate} onClick={() => navigate(`/analysis/${v.plate}`)}
-                  style={{ background: selected ? '#1a2440' : '#111827', borderRadius: '6px', padding: '10px 12px', border: `1px solid ${selected ? '#4f8ef7' : '#1e2235'}`, cursor: 'pointer' }}>
-                  <div style={{ fontSize: '13px', color: '#cdd6f4', fontWeight: '700' }}>{v.plate}</div>
-                  <div style={{ fontSize: '10px', color: '#4a5568', marginTop: '4px' }}>
-                    {new Date(v.last_checked).toLocaleString('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-          <button onClick={() => navigate('/vehicles')} style={{ marginTop: 'auto', width: '100%', padding: '8px', background: '#1a1f2e', border: '1px solid #1e2235', borderRadius: '5px', color: '#8892b0', fontSize: '11px', cursor: 'pointer' }}>
-            차량 목록으로
-          </button>
-        </div>
-
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#0d0f1a', minWidth: 0 }}>
-          <div style={{ background: '#0f1117', borderBottom: '1px solid #1e2235', padding: '0 12px', height: '32px', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-            <span style={{ fontSize: '11px', color: '#8892b0' }}>반납 시 촬영 사진 · {data.vehicle}</span>
-          </div>
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0a0c14' }}>
-            {data.image_url
-              ? <img src={data.image_url} alt="차량 실내 사진" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
-              : <div style={{ fontSize: '13px', color: '#4a5568' }}>사진 없음</div>}
-          </div>
-          <div style={{ background: '#0f1117', borderTop: '1px solid #1e2235', padding: '8px 12px', display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
-            <button style={{ padding: '4px 12px', background: 'rgba(239,68,68,0.1)', border: '1px solid #ef4444', borderRadius: '4px', color: '#ef4444', fontSize: '11px', cursor: 'pointer', fontWeight: '600' }}>배차 중단</button>
-            <button style={{ padding: '4px 12px', background: 'rgba(245,158,11,0.1)', border: '1px solid #f59e0b', borderRadius: '4px', color: '#f59e0b', fontSize: '11px', cursor: 'pointer', fontWeight: '600' }}>세차 호출</button>
-          </div>
-        </div>
-
-        <div style={{ width: '280px', background: '#0d0f1a', borderLeft: '1px solid #1e2235', display: 'flex', flexDirection: 'column', flexShrink: 0, overflowY: 'auto' }}>
-
-          <div style={{ padding: '16px 18px', borderBottom: '1px solid #1e2235' }}>
-            <div style={{ fontSize: '10px', color: '#4f8ef7', fontWeight: '700', letterSpacing: '0.5px', marginBottom: '10px' }}>오염도 스코어</div>
-            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: '6px' }}>
-              <div style={{ fontSize: '42px', fontWeight: '800', color: pollColor, lineHeight: 1 }}>{pollPct}%</div>
-              <div style={{ background: 'rgba(0,0,0,0.3)', border: `1px solid ${pollColor}`, borderRadius: '4px', padding: '3px 10px', fontSize: '11px', color: pollColor, fontWeight: '700' }}>
-                {gradeLabel[data.grade] ?? data.grade}
-              </div>
-            </div>
-            <div style={{ background: '#1e2235', borderRadius: '3px', height: '7px', marginBottom: '5px', overflow: 'hidden' }}>
-              <div style={{ height: '100%', width: `${Math.min(pollPct, 100)}%`, background: 'linear-gradient(90deg, #22c55e, #f59e0b, #ef4444)', borderRadius: '3px' }} />
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#2d3555' }}>
-              <span>0%</span><span style={{ color: '#4a5568' }}>기준치: 2% / 5%</span><span>100%</span>
-            </div>
-          </div>
-
-          <div style={{ padding: '14px 18px', borderBottom: '1px solid #1e2235' }}>
-            <div style={{ fontSize: '10px', color: '#4f8ef7', fontWeight: '700', letterSpacing: '0.5px', marginBottom: '10px' }}>감지 항목 [{detectionCount}건]</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {data.trash_count > 0 && (
-                <div style={{ background: '#111827', borderRadius: '6px', padding: '10px 12px', borderLeft: '3px solid #f59e0b' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                    <span style={{ fontSize: '12px', color: '#cdd6f4', fontWeight: '600' }}>고형 쓰레기</span>
-                    <span style={{ fontSize: '10px', color: '#f59e0b', fontWeight: '700' }}>{data.trash_count}개</span>
-                  </div>
-                  {data.trash_large && (
-                    <div style={{ fontSize: '10px', color: '#ef4444', marginTop: '2px' }}>대형 쓰레기 포함</div>
-                  )}
-                </div>
-              )}
-              {data.occupy_detected && (
-                <div style={{ background: '#111827', borderRadius: '6px', padding: '10px 12px', borderLeft: '3px solid #4f8ef7' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '12px', color: '#cdd6f4', fontWeight: '600' }}>두고 간 소지품</span>
-                    <span style={{ fontSize: '10px', color: '#4f8ef7', fontWeight: '700' }}>감지됨</span>
-                  </div>
-                </div>
-              )}
-              {detectionCount === 0 && (
-                <div style={{ fontSize: '12px', color: '#4a5568' }}>감지된 항목 없음</div>
-              )}
-            </div>
-          </div>
-
-          <div style={{ padding: '14px 18px', borderBottom: '1px solid #1e2235' }}>
-            <div style={{ fontSize: '10px', color: '#4f8ef7', fontWeight: '700', letterSpacing: '0.5px', marginBottom: '10px' }}>모델 통계</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-              {[['Precision', '0.897', '#22c55e'], ['Recall', '0.869', '#22c55e'], ['mAP50', '0.909', '#4f8ef7'], ['감지 수', `${detectionCount}건`, '#f59e0b']].map(([l, v, c]) => (
-                <div key={l} style={{ background: '#111827', borderRadius: '6px', padding: '10px 12px', border: '1px solid #1e2235' }}>
-                  <div style={{ fontSize: '10px', color: '#4a5568', marginBottom: '4px' }}>{l}</div>
-                  <div style={{ fontSize: '18px', fontWeight: '800', color: c }}>{v}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div style={{ padding: '14px 18px' }}>
-            <div style={{ fontSize: '10px', color: '#4f8ef7', fontWeight: '700', letterSpacing: '0.5px', marginBottom: '10px' }}>자동 처리 결과</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              {data.actions.map((a, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', background: '#111827', borderRadius: '6px', padding: '9px 12px' }}>
-                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#4f8ef7', flexShrink: 0 }} />
-                  <div style={{ fontSize: '12px', color: '#cdd6f4', fontWeight: '600' }}>{actionLabel[a] ?? a}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
+      <div className="analysis">
+        <nav className="analysis-list" aria-label="검수한 차량">
+          <h2 className="panel-title">검수한 차량 <span className="muted num">{inspected.length}</span></h2>
+          <ul>
+            {inspected.map(v => (
+              <li key={v.plate}>
+                <Link to={`/analysis/${v.plate}`} className="analysis-item" aria-current={v.plate === plate ? 'page' : undefined}>
+                  <Plate plate={v.plate} />
+                  <span className="analysis-item-meta">
+                    <span className="num">{formatShortDateTime(v.last_checked)}</span>
+                    {v.pollution_ratio != null && (
+                      <span className={`analysis-dot tone-${ratioTone(v.pollution_ratio)}`} aria-hidden="true" />
+                    )}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
+        {body}
       </div>
     </div>
   )
