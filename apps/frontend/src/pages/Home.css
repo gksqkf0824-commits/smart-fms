@@ -1,0 +1,52 @@
+/* 차량 상태 구성 — 한 줄 막대 + 상태별 대수 */
+.fleet-bar {
+  display: flex;
+  gap: 3px;
+  height: 14px;
+}
+.fleet-seg {
+  flex-basis: 0;
+  min-width: 6px;
+  border-radius: 4px;
+  background: var(--tone-fill);
+}
+
+.fleet-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 40px;
+  margin-top: 20px;
+}
+.fleet-item {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 4px 0;
+}
+.fleet-item .tag { font-size: 15px; }
+.fleet-count { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; }
+.fleet-count small { margin-left: 2px; font-size: 14px; font-weight: 500; color: var(--ink-3); }
+.fleet-item:hover .fleet-count { color: var(--blue); }
+
+/* 세차 대기 차량 — 쏘카의 목록형 카드처럼 오른쪽 셰브론 */
+.task-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 12px;
+}
+.task {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 16px 18px 20px;
+  transition: border-color 0.15s, background-color 0.15s;
+}
+.task:hover { border-color: var(--line-strong); background: var(--fill-soft); }
+.task-main { flex: 1; min-width: 0; display: grid; gap: 8px; justify-items: start; }
+.task-meta { display: flex; flex-wrap: wrap; gap: 0 10px; font-size: 13px; color: var(--ink-3); }
+.task-chevron { flex: none; color: var(--mute); }
+
+@media (max-width: 480px) {
+  .task-grid { grid-template-columns: 1fr; }
+  .task .scale-compact { display: none; }
+}

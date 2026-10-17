@@ -1,0 +1,18 @@
+/* 요약 — 카드 여러 장 대신 한 패널을 세로선으로 나눈다 */
+.summary {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+}
+.summary > div { padding: 22px 24px; }
+.summary > div + div { border-left: 1px solid var(--line); }
+.summary dt { font-size: 14px; color: var(--ink-3); }
+.summary dd { margin-top: 4px; font-size: 24px; font-weight: 700; letter-spacing: -0.02em; }
+.summary .summary-sub { margin-top: 0; font-size: 13px; font-weight: 500; letter-spacing: 0; color: var(--ink-3); }
+
+.penalty-note { margin-top: 2px; font-size: 12px; color: var(--ink-3); }
+
+@media (max-width: 860px) {
+  .summary { grid-template-columns: 1fr 1fr; }
+  .summary > div:nth-child(3) { border-left: 0; }
+  .summary > div:nth-child(n + 3) { border-top: 1px solid var(--line); }
+}

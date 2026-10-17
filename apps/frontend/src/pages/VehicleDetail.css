@@ -1,0 +1,18 @@
+.detail-title { display: flex; align-items: center; gap: 16px; }
+.detail-title h1 { display: flex; }
+.detail-head .page-desc { margin-top: 12px; }
+.detail-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.detail-notice { margin: -12px 0 24px; }
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 24px;
+  align-items: start;
+}
+.detail-side { display: grid; gap: 12px; }
+.detail-side .panel + .panel { margin-top: 0; }
+
+@media (max-width: 960px) {
+  .detail-grid { grid-template-columns: 1fr; }
+}

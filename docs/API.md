@@ -217,9 +217,27 @@
 
 ### `POST /vehicles/{plate}/resume` — 배차 재개 (수동, 관리자 인증)
 
+세차를 마친 차량을 다시 운행 가능(`AVAILABLE`)으로 돌린다. 해당 차량의 미완료 세차 요청은 `DONE`으로 처리.
+이미 차단(`BLOCKED`)·Swap(`SWAPPED`)된 예약은 되돌리지 않는다 (이미 다른 차량으로 처리된 배차).
+
+**Request Header**
+
+| 헤더 | 설명 |
+| --- | --- |
+| `X-Admin-Token` | 관리자 토큰. 백엔드 환경변수 `APP_ADMIN_TOKEN`과 일치해야 함 (미설정 시 항상 거절) |
+
+**Response** `200 OK`
+
 ```json
 { "plate": "12가3456", "status": "AVAILABLE" }
 ```
+
+| 상황 | 응답 |
+| --- | --- |
+| 이미 `AVAILABLE` | `200` — 그대로 성공 (재시도 안전) |
+| 토큰 없음·불일치 | `401` |
+| 없는 차량 | `404` |
+| `INSPECTING`(검수 중) | `409` |
 
 ---
 

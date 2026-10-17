@@ -1,0 +1,14 @@
+# EC2 배포용 이미지
+#
+# 일반 Dockerfile(apps/backend/Dockerfile)과 달리 컨테이너 안에서 Gradle 빌드를 하지 않는다.
+#  - 맥(arm64)에서 EC2용(amd64) 이미지를 만들려면 크로스 빌드가 필요한데,
+#    Gradle 빌드까지 에뮬레이션하면 매우 느리다.
+#  - jar는 아키텍처와 무관한 자바 바이트코드이므로 호스트에서 네이티브로 빌드하고,
+#    여기서는 amd64 JRE에 복사만 한다. (deploy.sh가 jar를 미리 만들어 둔다)
+FROM eclipse-temurin:21-jre
+WORKDIR /app
+RUN useradd --system --no-create-home spring
+USER spring
+COPY app.jar app.jar
+EXPOSE 8080
+ENTRYPOINT ["java", "-jar", "app.jar"]
